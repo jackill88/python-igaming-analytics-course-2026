@@ -100,6 +100,7 @@ flet run flet_app/main.py
 
 # Build APK (bundle markdown first, then compile)
 python flet_app/prepare_assets.py
+cd flet_app
 flet build apk
 ```
 
