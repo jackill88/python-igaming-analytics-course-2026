@@ -1,0 +1,414 @@
+"""Offline Android course navigator — run with: flet run flet_app/main.py"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import flet as ft
+
+FLET_APP_DIR = Path(__file__).resolve().parent
+REPO_ROOT = FLET_APP_DIR.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+if str(FLET_APP_DIR) not in sys.path:
+    sys.path.insert(0, str(FLET_APP_DIR))
+
+from course_nav.course_loader import discover_modules, read_markdown
+from course_nav.database import (
+    ModuleStatus,
+    completion_stats,
+    configure_db_dir,
+    get_progress,
+    init_db,
+    set_module_status,
+    touch_module,
+)
+from config import get_app_data_dir, get_course_root
+
+STATUS_ICONS = {
+    ModuleStatus.NOT_STARTED: "⬜",
+    ModuleStatus.IN_PROGRESS: "🔵",
+    ModuleStatus.COMPLETED: "✅",
+}
+
+STATUS_LABELS = {
+    ModuleStatus.NOT_STARTED: "Not started",
+    ModuleStatus.IN_PROGRESS: "In progress",
+    ModuleStatus.COMPLETED: "Completed",
+}
+
+_COURSE_MD_STYLE = ft.MarkdownStyleSheet(
+    code_text_style=ft.TextStyle(
+        font_family="monospace",
+        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+    ),
+    codeblock_padding=12,
+    codeblock_decoration=ft.BoxDecoration(
+        bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+        border_radius=8,
+        border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+    ),
+)
+
+
+def _course_markdown(text: str) -> ft.Markdown:
+    return ft.Markdown(
+        value=text,
+        extension_set=ft.MarkdownExtensionSet.GITHUB_FLAVORED,
+        code_theme=ft.MarkdownCodeTheme.GITHUB,
+        selectable=True,
+        md_style_sheet=_COURSE_MD_STYLE,
+        code_style_sheet=_COURSE_MD_STYLE,
+    )
+
+
+class CourseNavigator:
+    def __init__(self, page: ft.Page) -> None:
+        self.page = page
+        configure_db_dir(get_app_data_dir())
+        self.modules = discover_modules(root=get_course_root())
+        init_db([m.module_id for m in self.modules])
+
+        self.page_name = "home"
+        self.selected_module: str | None = None
+        self.content_path: str | None = None
+
+        self.body = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO)
+        self.progress_text = ft.Text("")
+        self.progress_bar = ft.ProgressBar(value=0, bar_height=6)
+
+    def start(self) -> None:
+        self.page.title = "iGaming Analytics Course"
+        self.page.theme_mode = ft.ThemeMode.LIGHT
+        self.page.padding = 0
+        self.page.appbar = ft.AppBar(
+            leading=ft.IconButton(
+                icon=ft.Icons.MENU,
+                on_click=self._open_drawer,
+            ),
+            title=ft.Text("Course Navigator"),
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+        )
+        self.page.drawer = self._build_drawer()
+        self.page.add(
+            ft.Column(
+                expand=True,
+                controls=[
+                    ft.Container(
+                        content=self.body,
+                        expand=True,
+                        padding=16,
+                    ),
+                ],
+            )
+        )
+        self._render()
+
+    def _find_module(self, module_id: str):
+        for module in self.modules:
+            if module.module_id == module_id:
+                return module
+        return None
+
+    def _go_home(self) -> None:
+        self.page_name = "home"
+        self.selected_module = None
+        self.content_path = None
+        self._render()
+
+    def _open_module(self, module_id: str) -> None:
+        self.page_name = "module"
+        self.selected_module = module_id
+        self.content_path = None
+        touch_module(module_id)
+        self._render()
+
+    def _open_content(self, module_id: str, content_path: str) -> None:
+        self.page_name = "content"
+        self.selected_module = module_id
+        self.content_path = content_path
+        touch_module(module_id)
+        self._render()
+
+    def _mark_in_progress(self, module_id: str) -> None:
+        set_module_status(module_id, ModuleStatus.IN_PROGRESS)
+        self._render()
+
+    def _mark_completed(self, module_id: str) -> None:
+        set_module_status(module_id, ModuleStatus.COMPLETED)
+        self._render()
+
+    def _reset_module(self, module_id: str) -> None:
+        set_module_status(module_id, ModuleStatus.NOT_STARTED)
+        self._go_home()
+
+    def _render(self) -> None:
+        self._update_drawer_progress()
+        self.body.controls.clear()
+
+        if self.page_name == "home":
+            self._render_home()
+        elif self.page_name == "module" and self.selected_module:
+            self._render_module(self.selected_module)
+        elif (
+            self.page_name == "content"
+            and self.selected_module
+            and self.content_path
+        ):
+            self._render_content(self.selected_module, self.content_path)
+        else:
+            self._render_home()
+
+        self.page.update()
+
+    def _update_drawer_progress(self) -> None:
+        completed, total = completion_stats([m.module_id for m in self.modules])
+        ratio = completed / total if total else 0.0
+        self.progress_bar.value = ratio
+        self.progress_text.value = f"{completed} of {total} modules completed"
+
+    async def _open_drawer(self, _=None) -> None:
+        await self.page.show_drawer()
+
+    def _drawer_action(self, action):
+        async def handler(_=None) -> None:
+            await self._drawer_navigate(action)
+
+        return handler
+
+    def _build_drawer(self) -> ft.NavigationDrawer:
+        progress_map = {m.module_id: get_progress(m.module_id) for m in self.modules}
+        destinations: list[ft.Control] = [
+            ft.Container(
+                padding=16,
+                content=ft.Column(
+                    spacing=8,
+                    controls=[
+                        ft.Text("Course Navigator", size=18, weight=ft.FontWeight.BOLD),
+                        self.progress_bar,
+                        self.progress_text,
+                    ],
+                ),
+            ),
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.HOME),
+                title=ft.Text("Course Home"),
+                on_click=self._drawer_action(self._go_home),
+            ),
+            ft.Divider(height=1),
+            ft.Container(
+                padding=ft.Padding.only(left=16, top=8, bottom=4),
+                content=ft.Text("Modules", weight=ft.FontWeight.W_600),
+            ),
+        ]
+
+        for module in self.modules:
+            prog = progress_map[module.module_id]
+            icon = STATUS_ICONS[prog.status]
+            module_id = module.module_id
+
+            destinations.append(
+                ft.ListTile(
+                    title=ft.Text(f"{icon} {module.number:02d}. {module.title}"),
+                    on_click=self._drawer_action(lambda mid=module_id: self._open_module(mid)),
+                )
+            )
+
+        return ft.NavigationDrawer(controls=destinations)
+
+    async def _drawer_navigate(self, action) -> None:
+        await self.page.close_drawer()
+        action()
+        self.page.drawer = self._build_drawer()
+
+    def _metric_card(self, label: str, value: str | int) -> ft.Container:
+        return ft.Container(
+            expand=True,
+            padding=12,
+            border_radius=8,
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+            content=ft.Column(
+                spacing=4,
+                controls=[
+                    ft.Text(str(value), size=24, weight=ft.FontWeight.BOLD),
+                    ft.Text(label, size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                ],
+            ),
+        )
+
+    def _render_home(self) -> None:
+        modules = self.modules
+        completed, total = completion_stats([m.module_id for m in modules])
+        course_root = get_course_root()
+        progress_map = {m.module_id: get_progress(m.module_id) for m in modules}
+
+        self.body.controls.extend(
+            [
+                ft.Text("iGaming Analytics Course", size=22, weight=ft.FontWeight.BOLD),
+                ft.Text("RGS data · metrics · ML · self-paced", color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.Row(
+                    controls=[
+                        self._metric_card("Modules", total),
+                        self._metric_card("Completed", completed),
+                        self._metric_card("Remaining", total - completed),
+                    ],
+                ),
+            ]
+        )
+
+        readme_path = course_root / "README.md"
+        if readme_path.is_file():
+            self.body.controls.append(
+                ft.ExpansionTile(
+                    title=ft.Text("About this course"),
+                    expanded=True,
+                    controls=[
+                        ft.Container(
+                            padding=ft.Padding.only(left=8, right=8, bottom=12),
+                            content=_course_markdown(read_markdown(readme_path)),
+                        )
+                    ],
+                )
+            )
+
+        self.body.controls.append(
+            ft.Text("Your learning path", size=18, weight=ft.FontWeight.W_600)
+        )
+
+        for module in modules:
+            prog = progress_map[module.module_id]
+            icon = STATUS_ICONS[prog.status]
+            module_id = module.module_id
+            self.body.controls.append(
+                ft.Card(
+                    content=ft.ListTile(
+                        leading=ft.Text(f"{module.number:02d}", weight=ft.FontWeight.BOLD),
+                        title=ft.Text(f"{icon} {module.title}"),
+                        subtitle=ft.Text(STATUS_LABELS[prog.status]),
+                        trailing=ft.IconButton(
+                            icon=ft.Icons.OPEN_IN_NEW,
+                            tooltip="Open",
+                            on_click=lambda _, mid=module_id: self._open_module(mid),
+                        ),
+                    )
+                )
+            )
+
+    def _render_module(self, module_id: str) -> None:
+        module = self._find_module(module_id)
+        if module is None:
+            self.body.controls.append(ft.Text("Module not found.", color=ft.Colors.ERROR))
+            return
+
+        progress = get_progress(module_id)
+
+        self.body.controls.extend(
+            [
+                ft.Text(module.title, size=22, weight=ft.FontWeight.BOLD),
+                ft.Text(
+                    f"Module {module.number:02d} · {module.module_id}",
+                    color=ft.Colors.ON_SURFACE_VARIANT,
+                ),
+                ft.Row(
+                    controls=[
+                        self._metric_card("Status", STATUS_LABELS[progress.status]),
+                        self._metric_card("Theory lessons", len(module.theory)),
+                        self._metric_card("Quizzes", len(module.quizzes)),
+                    ],
+                ),
+                ft.Row(
+                    controls=[
+                        ft.Button(
+                            "Mark in progress",
+                            expand=True,
+                            on_click=lambda _: self._mark_in_progress(module_id),
+                        ),
+                        ft.Button(
+                            "Mark completed",
+                            expand=True,
+                            style=ft.ButtonStyle(bgcolor=ft.Colors.PRIMARY, color=ft.Colors.ON_PRIMARY),
+                            on_click=lambda _: self._mark_completed(module_id),
+                        ),
+                        ft.OutlinedButton(
+                            "Reset module",
+                            expand=True,
+                            on_click=lambda _: self._reset_module(module_id),
+                        ),
+                    ],
+                ),
+                ft.Divider(),
+            ]
+        )
+
+        if module.readme:
+            self.body.controls.append(
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.MENU_BOOK),
+                    title=ft.Text("Module overview (README)"),
+                    on_click=lambda _: self._open_content(
+                        module_id, str(module.readme.path)
+                    ),
+                )
+            )
+
+        if module.theory:
+            self.body.controls.append(
+                ft.Text("Theory", size=16, weight=ft.FontWeight.W_600)
+            )
+            for item in module.theory:
+                path = str(item.path)
+                self.body.controls.append(
+                    ft.ListTile(
+                        leading=ft.Icon(ft.Icons.ARTICLE),
+                        title=ft.Text(item.title),
+                        on_click=lambda _, p=path: self._open_content(module_id, p),
+                    )
+                )
+
+        if module.quizzes:
+            self.body.controls.append(
+                ft.Text("Quizzes", size=16, weight=ft.FontWeight.W_600)
+            )
+            for item in module.quizzes:
+                path = str(item.path)
+                self.body.controls.append(
+                    ft.ListTile(
+                        leading=ft.Icon(ft.Icons.QUIZ),
+                        title=ft.Text(item.title),
+                        on_click=lambda _, p=path: self._open_content(module_id, p),
+                    )
+                )
+
+    def _render_content(self, module_id: str, content_path: str) -> None:
+        module = self._find_module(module_id)
+        path = Path(content_path)
+        if not path.is_file():
+            self.body.controls.append(
+                ft.Text("Content file not found.", color=ft.Colors.ERROR)
+            )
+            return
+
+        caption = path.name
+        if module:
+            caption = f"{module.title} · {path.name}"
+
+        self.body.controls.extend(
+            [
+                ft.Text(caption, color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.TextButton(
+                    "← Back to module",
+                    on_click=lambda _: self._open_module(module_id),
+                ),
+                ft.Divider(),
+                _course_markdown(read_markdown(path)),
+            ]
+        )
+
+
+def main(page: ft.Page) -> None:
+    CourseNavigator(page).start()
+
+
+if __name__ == "__main__":
+    ft.run(main)
