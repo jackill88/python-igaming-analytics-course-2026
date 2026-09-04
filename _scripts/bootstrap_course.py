@@ -900,15 +900,25 @@ Test your understanding: [quizzes/{quiz_slug}_quiz.md](quizzes/{quiz_slug}_quiz.
 """
 
 
-def generate_modules() -> None:
+def generate_modules(*, write_theory: bool = False, write_quizzes: bool = False) -> None:
+    """Generate module READMEs and challenge stubs.
+
+    Theory lessons are maintained in ``_scripts/fix_theory.py`` — run that script
+    separately so bootstrap does not overwrite module-specific lesson content.
+
+    Quizzes, enriched challenge docstrings, and pytest files are maintained in
+    ``_scripts/fix_quizzes_challenges_tests.py`` — run that script separately.
+    """
     for m in MODULES:
         mid = m["id"]
         mod_dir = ROOT / mid
         write(mod_dir / "README.md", readme_content(m))
-        for fname, title, summary in m["lessons"]:
-            write(mod_dir / "theory" / fname, lesson_body(title, summary))
-        quiz_slug = mid.split("_", 1)[1]
-        write(mod_dir / "quizzes" / f"{quiz_slug}_quiz.md", quiz_content(m["title"]))
+        if write_theory:
+            for fname, title, summary in m["lessons"]:
+                write(mod_dir / "theory" / fname, lesson_body(title, summary))
+        if write_quizzes:
+            quiz_slug = mid.split("_", 1)[1]
+            write(mod_dir / "quizzes" / f"{quiz_slug}_quiz.md", quiz_content(m["title"]))
         for fname, content in m["challenges"]:
             write(mod_dir / "challenges" / fname, content)
 
@@ -916,3 +926,5 @@ def generate_modules() -> None:
 if __name__ == "__main__":
     generate_modules()
     print(f"Generated {len(MODULES)} modules under {ROOT}")
+    print("Theory: run python3 _scripts/fix_theory.py to (re)generate lesson markdown.")
+    print("Quizzes/challenges/tests: run python3 _scripts/fix_quizzes_challenges_tests.py")

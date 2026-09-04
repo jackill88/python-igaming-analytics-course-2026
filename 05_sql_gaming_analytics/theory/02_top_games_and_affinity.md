@@ -1,29 +1,40 @@
 # Top Games and Affinity
 
-Rankings and player-game relationships.
+## Game popularity
 
-## Key concepts
+Rank games by:
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+- **Round count** — engagement volume
+- **Unique players** — reach
+- **GGR** — revenue contribution
+- **Turnover** (total bets) — handle / liquidity
 
-## Example
-
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```sql
+SELECT game_id,
+       COUNT(*) AS rounds,
+       COUNT(DISTINCT player_id) AS unique_players,
+       SUM(bet_amount - win_amount) AS ggr
+FROM rounds
+GROUP BY game_id
+ORDER BY ggr DESC;
 ```
 
-## Practice
+## Player–game affinity
 
-Complete the module challenges and run pytest to verify your implementation.
+For each player, find **favorite game** = most rounds played (tie-break by `game_id`).
+
+Use `ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY cnt DESC, game_id)`.
+
+## Category mix
+
+Join `games` to analyze slots vs table games per player segment.
+
+## Product actions
+
+- Promote high-GGR games to casual segments
+- Cross-sell table games to slots-only players
+- Retire low-engagement titles from the lobby
+
+## Key takeaway
+
+Popularity (rounds) and profitability (GGR) **diverge** — optimize for the metric that matches the business goal.

@@ -51,13 +51,28 @@ CHALLENGE_MAP = {
 
 
 def main() -> int:
+    helper_block = "\n\n".join(
+        inspect.getsource(getattr(sol, name))
+        for name in ("_normalize_day", "_event_days", "_in_day_range")
+    )
+    needs_helpers = {
+        "days_since_last_session.py",
+        "sessions_in_window.py",
+        "build_player_features.py",
+        "churn_feature_matrix.py",
+        "ltv_feature_matrix.py",
+    }
+
     backups: dict[Path, str] = {}
     for (mod, fname), funcs in CHALLENGE_MAP.items():
         path = ROOT / mod / "challenges" / fname
         backups[path] = path.read_text()
         header = path.read_text().split("def ")[0].rstrip()
-        body = [header] + [inspect.getsource(getattr(sol, fn)) for fn in funcs]
-        path.write_text("\n\n".join(body) + "\n")
+        parts = [header]
+        if fname in needs_helpers:
+            parts.append(helper_block)
+        parts.extend(inspect.getsource(getattr(sol, fn)) for fn in funcs)
+        path.write_text("\n\n".join(parts) + "\n")
 
     result = subprocess.run([sys.executable, "-m", "pytest", "-q"], cwd=ROOT)
 

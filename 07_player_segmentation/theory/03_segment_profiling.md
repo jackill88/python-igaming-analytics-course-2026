@@ -1,29 +1,36 @@
 # Segment Profiling
 
-Centroids, lift, and CRM actions.
+After clustering, profile each segment to make it actionable.
 
-## Key concepts
+## Profile table
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+| Segment | Count | avg_ggr_30d | avg_sessions_30d | top_game |
+|---------|-------|-------------|------------------|----------|
+| 0 | 12k | 450 | 25 | slots_a |
+| 1 | 80k | 5 | 2 | roulette_b |
 
-## Example
+Compute **mean/median** of each feature per cluster.
 
-```python
-import pandas as pd
+## Naming segments
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+Compare centroids to global averages:
+
+- Segment mean GGR >> global → "Whales"
+- High days_since_last_session → "Dormant / churn-risk"
+
+## Stability checks
+
+- Re-cluster monthly — do segment sizes drift wildly?
+- Track segment migration (player moves whale → casual)
+
+## Export to CRM
+
+```
+player_segments(player_id, segment_id, segment_name, scored_at)
 ```
 
-## Practice
+Refresh nightly or weekly.
 
-Complete the module challenges and run pytest to verify your implementation.
+## Key takeaway
+
+A segment without a **profile and recommended action** is just an integer label.

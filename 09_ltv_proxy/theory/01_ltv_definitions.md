@@ -1,29 +1,35 @@
 # LTV Definitions
 
-True LTV vs GGR-based proxy.
+**LTV (Lifetime Value)** = total net revenue expected from a player over their relationship.
 
-## Key concepts
+## True financial LTV
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
-
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```
+LTV ≈ ARPU × average lifetime
 ```
 
-## Practice
+Requires PAM: deposits, withdrawals, bonuses, fees → **NGR per player**.
 
-Complete the module challenges and run pytest to verify your implementation.
+## RGS-only proxy
+
+Without payments data, predict:
+
+- **future_ggr_30d** / **future_ggr_90d**
+- **future turnover** (total bets)
+
+These rank players by **expected gameplay value**, not true profit.
+
+## When proxy is enough
+
+- Game recommendation ranking
+- Segmentation for gameplay campaigns
+- Resource allocation among CRM tiers
+
+## When proxy fails
+
+- Bonus-heavy markets (GGR ≠ NGR)
+- Payment-fee-sensitive profitability analysis
+
+## Key takeaway
+
+Call it **expected future GGR**, not LTV, when presenting to finance stakeholders.

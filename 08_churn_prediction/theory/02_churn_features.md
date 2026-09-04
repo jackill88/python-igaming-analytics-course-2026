@@ -1,29 +1,33 @@
 # Churn Features
 
-Recency, frequency, monetary proxies.
+Strong churn models use **recency, frequency, and monetary proxies** from RGS.
 
-## Key concepts
+## Core features
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+| Feature | Signal |
+|---------|--------|
+| `days_since_last_session` | Recency — top predictor |
+| `sessions_7d`, `sessions_30d` | Frequency trend |
+| `avg_bet_30d` | Engagement depth |
+| `ggr_30d` | Value (can be negative) |
+| `favorite_game` | Habit / product stickiness |
 
-## Example
+## Derived features
 
-```python
-import pandas as pd
+- `sessions_7d / sessions_30d` — recent slowdown
+- `ggr_7d - ggr_prev_7d` — momentum
+- Days since registration — lifecycle stage
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
-```
+## Feature snapshot
 
-## Practice
+All features computed at `snapshot_date` using only prior data.
 
-Complete the module challenges and run pytest to verify your implementation.
+Join labels from activity **after** snapshot.
+
+## Missing history
+
+New players with <7 days tenure — exclude or use separate model.
+
+## Key takeaway
+
+Churn features are mostly **RFM variants on gameplay** — keep them in `player_features_daily` for reuse.

@@ -2,6 +2,23 @@
 Challenge: Prepare Segmentation Features
 Module 07: Player Segmentation
 
+Theory: theory/02_clustering_algorithms.md
+
+Inputs:
+  df — feature table with numeric and non-feature columns
+  feature_cols — list of column names to keep
+
+Outputs:
+  Numeric matrix with selected columns; NaN → 0
+
+Edge cases:
+  - Drop columns not in feature_cols
+  - Preserve row count and index
+
+Example:
+  >>> prepare_features(df, ["sessions_30d", "ggr_30d"]).isna().sum().sum()
+  0
+
 Run: pytest tests/07_player_segmentation/test_prepare_segmentation_features.py -v
 """
 

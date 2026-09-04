@@ -1,29 +1,34 @@
 # Stickiness
 
-How often players return: DAU / MAU.
+Stickiness measures **how often users return** within a longer window.
 
-## Key concepts
+```
+Stickiness = DAU / MAU
+```
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+| Stickiness | Interpretation |
+|------------|----------------|
+| ~0.03 | Players visit ~1 day per month (typical casual app) |
+| ~0.10 | Strong daily habit |
+| ~0.20+ | Very high-frequency product |
+
+## Why it matters in iGaming
+
+- High stickiness → reliable daily revenue base
+- Low stickiness + high MAU → many occasional players (weekend spikes)
+- Track stickiness by **cohort** and **game category** for product insight
 
 ## Example
 
 ```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+stickiness = dau(activity, as_of) / mau(activity, as_of)  # guard MAU=0
 ```
 
-## Practice
+## Related metrics
 
-Complete the module challenges and run pytest to verify your implementation.
+- **WAU / MAU** — weekly return rate
+- **DAU / WAU** — within-week frequency
+
+## Key takeaway
+
+Stickiness is a **ratio of two active-user metrics** — if you change the active definition, both numerator and denominator must use the same rule.

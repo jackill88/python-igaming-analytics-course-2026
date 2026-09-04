@@ -11,6 +11,21 @@ import lightgbm as lgb
 REQUIRED_FIELDS = {"round_id", "player_id", "session_id", "game_id", "timestamp", "bet_amount", "win_amount"}
 
 
+def _normalize_day(ts: pd.Timestamp) -> pd.Timestamp:
+    return pd.Timestamp(ts).normalize()
+
+
+def _event_days(series: pd.Series) -> pd.Series:
+    return pd.to_datetime(series).dt.normalize()
+
+
+def _in_day_range(events: pd.DataFrame, feature_date: pd.Timestamp, window_days: int) -> pd.DataFrame:
+    end_day = _normalize_day(feature_date)
+    start_day = end_day - pd.Timedelta(days=window_days - 1)
+    days = _event_days(events["timestamp"])
+    return events.loc[(days >= start_day) & (days <= end_day)].copy()
+
+
 def validate_rgs_event(event: dict) -> tuple[bool, list[str]]:
     errors = []
     for field in REQUIRED_FIELDS:
@@ -189,21 +204,22 @@ def rolling_7d_ggr_sql() -> str:
 
 
 def days_since_last_session(events: pd.DataFrame, feature_date: pd.Timestamp) -> pd.DataFrame:
-    events = events[events["timestamp"] < feature_date].copy()
-    last = events.groupby("player_id")["timestamp"].max().reset_index()
-    last["days_since_last_session"] = (feature_date - last["timestamp"]).dt.days
+    feature_day = _normalize_day(feature_date)
+    hist = events.loc[_event_days(events["timestamp"]) < feature_day].copy()
+    last = hist.groupby("player_id")["timestamp"].max().reset_index()
+    last["days_since_last_session"] = (
+        feature_day - _event_days(last["timestamp"])
+    ).dt.days
     return last[["player_id", "days_since_last_session"]]
 
 
 def sessions_7d(events: pd.DataFrame, feature_date: pd.Timestamp) -> pd.DataFrame:
-    start = feature_date - pd.Timedelta(days=6)
-    window = events[(events["timestamp"] >= start) & (events["timestamp"] <= feature_date)]
+    window = _in_day_range(events, feature_date, window_days=7)
     return window.groupby("player_id")["session_id"].nunique().reset_index(name="sessions_7d")
 
 
 def build_player_features(events: pd.DataFrame, feature_date: pd.Timestamp) -> pd.DataFrame:
-    start = feature_date - pd.Timedelta(days=6)
-    window = events[(events["timestamp"] >= start) & (events["timestamp"] <= feature_date)].copy()
+    window = _in_day_range(events, feature_date, window_days=7)
     fav = (
         window.groupby(["player_id", "game_id"]).size().reset_index(name="cnt")
         .sort_values(["player_id", "cnt", "game_id"], ascending=[True, False, True])
@@ -249,15 +265,21 @@ def label_churn(activity: pd.DataFrame, snapshot_date: pd.Timestamp, horizon_day
 
 
 def build_churn_features(events: pd.DataFrame, snapshot_date: pd.Timestamp) -> pd.DataFrame:
-    start = snapshot_date - pd.Timedelta(days=30)
-    hist = events[(events["timestamp"] >= start) & (events["timestamp"] <= snapshot_date)].copy()
-    last = events[events["timestamp"] <= snapshot_date].groupby("player_id")["timestamp"].max()
+    hist = _in_day_range(events, snapshot_date, window_days=30)
+    snapshot_day = _normalize_day(snapshot_date)
+    last = (
+        events.loc[_event_days(events["timestamp"]) <= snapshot_day]
+        .groupby("player_id")["timestamp"]
+        .max()
+    )
     agg = hist.groupby("player_id").agg(
         sessions_30d=("session_id", "nunique"),
         avg_bet_30d=("bet_amount", "mean"),
         ggr_30d=("bet_amount", lambda s: (s - hist.loc[s.index, "win_amount"]).sum()),
     )
-    agg["days_since_last_session"] = (snapshot_date - last).dt.days
+    agg["days_since_last_session"] = (
+        snapshot_day - _event_days(last)
+    ).dt.days
     return agg.reset_index()
 
 
@@ -276,9 +298,7 @@ def label_future_ggr(events, snapshot_date, horizon_days=30):
 
 
 def ltv_features(events, snapshot_date):
-    start = snapshot_date - pd.Timedelta(days=30)
-    hist = events[events["timestamp"] <= snapshot_date].copy()
-    window = hist[hist["timestamp"] >= start]
+    window = _in_day_range(events, snapshot_date, window_days=30)
     return window.groupby("player_id").agg(
         ggr_30d=("bet_amount", lambda s: (s - window.loc[s.index, "win_amount"]).sum()),
         sessions_30d=("session_id", "nunique"),

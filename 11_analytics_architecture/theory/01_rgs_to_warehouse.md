@@ -1,29 +1,45 @@
 # RGS to Warehouse
 
-Ingestion, grain, partitioning.
+Phase 1 of the analytics stack: reliable ingestion of gameplay events.
 
-## Key concepts
+## Source: RGS event stream
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+Fields: `round_id`, `player_id`, `session_id`, `game_id`, `timestamp`, `bet_amount`, `win_amount`.
 
-## Example
+Delivery: Kafka, Kinesis, webhook batch, or SFTP CSV dumps.
 
-```python
-import pandas as pd
+## Target: warehouse fact table
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```sql
+CREATE TABLE fct_rounds (
+    round_id        VARCHAR PRIMARY KEY,
+    player_id       BIGINT,
+    session_id      VARCHAR,
+    game_id         VARCHAR,
+    event_ts        TIMESTAMP,   -- UTC
+    bet_amount      DECIMAL(18,2),
+    win_amount      DECIMAL(18,2),
+    ingested_at     TIMESTAMP
+);
 ```
 
-## Practice
+## Design decisions
 
-Complete the module challenges and run pytest to verify your implementation.
+| Decision | Recommendation |
+|----------|----------------|
+| Grain | One row per round |
+| Partition | `DATE(event_ts)` |
+| Dedup key | `round_id` |
+| Late data | Allow 24–72h replay window |
+| Format | Parquet / Iceberg for lake; native tables for warehouse |
+
+## Ingestion checklist
+
+- Idempotent loads (upsert on `round_id`)
+- Schema validation at landing zone
+- Dead-letter queue for malformed events
+- Row count + GGR sum reconciliation vs RGS daily report
+
+## Key takeaway
+
+Get **round-level facts correct and deduplicated** before building any ML — everything downstream depends on this table.

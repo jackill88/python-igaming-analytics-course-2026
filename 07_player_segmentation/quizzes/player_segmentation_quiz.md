@@ -4,78 +4,78 @@
 
 ---
 
-**1.** With RGS-only data, which metric is directly computable?
+**1.** Segmentation on RGS data commonly identifies:
 
-- A) NGR  
-- B) ARPU  
-- C) GGR  
-- D) Bonus cost  
+- A) Payment processor latency tiers  
+- B) Whales, casuals, and churn-risk players  
+- C) Tax jurisdictions  
+- D) Email domain clusters  
 
-**2.** GGR is defined as:
+**2.** K-Means requires you to specify:
 
-- A) Deposits minus withdrawals  
-- B) Bets minus wins  
-- C) Revenue minus taxes  
-- D) Wins minus bets  
+- A) Only the random seed  
+- B) The number of clusters k  
+- C) The churn horizon  
+- D) Provider fee schedule  
 
-**3.** DAU counts:
+**3.** HDBSCAN is useful when:
 
-- A) Total bets per day  
-- B) Unique active players per day  
-- C) New registrations per day  
-- D) Sessions per day  
+- A) You want exactly 3 clusters always  
+- B) Cluster count is unknown and noise points exist  
+- C) Data has no numeric columns  
+- D) You need SQL window functions  
 
-**4.** Stickiness is typically:
+**4.** Before clustering, numeric features should typically be:
 
-- A) WAU / MAU  
-- B) DAU / MAU  
-- C) DAU / WAU  
-- D) MAU / DAU  
+- A) Left on different scales without transformation  
+- B) Scaled or standardized when magnitudes differ widely  
+- C) Converted to player emails  
+- D) Dropped entirely  
 
-**5.** D7 retention measures players who:
+**5.** Segment profiling computes:
 
-- A) Deposit on day 7  
-- B) Return 7 days after registration  
-- C) Play 7 games  
-- D) Win on day 7  
+- A) Mean/median of features per cluster label  
+- B) Global DAU only  
+- C) Provider RTP tables  
+- D) Deposit limits  
 
-**6.** Churn is often defined as:
+**6.** A "whale" segment in iGaming usually shows:
 
-- A) One losing session  
-- B) 30 days inactive  
-- C) Negative GGR  
-- D) Account closed  
+- A) Zero sessions and zero GGR  
+- B) High GGR and high average bet  
+- C) Only bonus-driven play with no rounds  
+- D) Negative player_id values  
 
-**7.** player_features_daily should use:
+**7.** `random_state=42` in K-Means ensures:
 
-- A) Future data for accuracy  
-- B) Point-in-time features only  
-- C) PAM wallet balances only  
-- D) Real-time Feast only  
+- A) Different results every run  
+- B) Reproducible cluster assignments for the same data  
+- C) Automatic optimal k  
+- D) Removal of outliers  
 
-**8.** With RGS-only data, LTV models should predict:
+**8.** Segmentation outputs feed CRM when:
 
-- A) True financial LTV  
-- B) future_ggr or turnover proxy  
-- C) Payment processor fees  
-- D) CRM email open rate  
+- A) Segments are interpretable and stable enough to act on  
+- B) k equals the number of games  
+- C) All players are in one cluster  
+- D) Features include future GGR  
 
-**9.** First ML use case to validate ROI is often:
+**9.** GMM (Gaussian Mixture) differs from K-Means by:
 
-- A) Real-time feature store  
-- B) Churn or segmentation  
-- C) Blockchain ledger  
-- D) Data catalog only  
+- A) Producing soft cluster probabilities  
+- B) Requiring no numeric input  
+- C) Only working on categorical data  
+- D) Ignoring variance  
 
-**10.** A feature store is recommended when:
+**10.** With RGS-only data, segmentation features often include:
 
-- A) Day one of analytics  
-- B) Multiple models share features and online inference matters  
-- C) You have no warehouse  
-- D) Only batch reports needed  
+- A) Wallet balance and bonus abuse score from PAM  
+- B) sessions_30d, avg_bet, ggr_30d, days_since_last_session  
+- C) Email click-through rate  
+- D) Withdrawal processor ID  
 
 ---
 
 ## Answers
 
-1. C · 2. B · 3. B · 4. B · 5. B · 6. B · 7. B · 8. B · 9. B · 10. B
+1. B · 2. B · 3. B · 4. B · 5. A · 6. B · 7. B · 8. A · 9. A · 10. B

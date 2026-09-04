@@ -4,78 +4,78 @@
 
 ---
 
-**1.** With RGS-only data, which metric is directly computable?
+**1.** A player-game matrix has:
 
-- A) NGR  
-- B) ARPU  
-- C) GGR  
-- D) Bonus cost  
+- A) Rows = games, columns = providers  
+- B) Rows = players, columns = games, values = interaction strength  
+- C) Rows = deposits, columns = withdrawals  
+- D) Rows = cohorts, columns = retention days  
 
-**2.** GGR is defined as:
+**2.** Collaborative filtering recommends items based on:
 
-- A) Deposits minus withdrawals  
-- B) Bets minus wins  
-- C) Revenue minus taxes  
-- D) Wins minus bets  
+- A) Only item metadata tags  
+- B) Similarity of player interaction patterns  
+- C) Random number generation  
+- D) Tax jurisdiction  
 
-**3.** DAU counts:
+**3.** A popularity baseline recommends games:
 
-- A) Total bets per day  
-- B) Unique active players per day  
-- C) New registrations per day  
-- D) Sessions per day  
+- A) Never played by anyone  
+- B) With highest global round counts among unplayed candidates  
+- C) Alphabetically first always  
+- D) From PAM bonus history only  
 
-**4.** Stickiness is typically:
+**4.** Tie-breaking by `game_id` ascending ensures:
 
-- A) WAU / MAU  
-- B) DAU / MAU  
-- C) DAU / WAU  
-- D) MAU / DAU  
+- A) Non-deterministic results  
+- B) Reproducible rankings when counts tie  
+- C) Higher GGR always  
+- D) More clusters in K-Means  
 
-**5.** D7 retention measures players who:
+**5.** Offline evaluation metrics include:
 
-- A) Deposit on day 7  
-- B) Return 7 days after registration  
-- C) Play 7 games  
-- D) Win on day 7  
+- A) Hit rate, coverage, and diversity  
+- B) Warehouse disk RPM only  
+- C) Provider contract length  
+- D) KYC completion rate  
 
-**6.** Churn is often defined as:
+**6.** Recommendations for games the player already played heavily should be:
 
-- A) One losing session  
-- B) 30 days inactive  
-- C) Negative GGR  
-- D) Account closed  
+- A) Always top-ranked  
+- B) Deprioritized for discovery use cases  
+- C) Excluded from the matrix entirely  
+- D) Required by GDPR  
 
-**7.** player_features_daily should use:
+**7.** Matrix factorization (e.g. LightFM) is useful when:
 
-- A) Future data for accuracy  
-- B) Point-in-time features only  
-- C) PAM wallet balances only  
-- D) Real-time Feast only  
+- A) You need implicit feedback from round counts  
+- B) You have no player-item interactions  
+- C) Only one game exists  
+- D) SQL window functions fail  
 
-**8.** With RGS-only data, LTV models should predict:
+**8.** Real-time game recommendations require:
 
-- A) True financial LTV  
-- B) future_ggr or turnover proxy  
-- C) Payment processor fees  
-- D) CRM email open rate  
+- A) Batch-only nightly CSV exports  
+- B) Low-latency scoring infrastructure  
+- C) No event stream  
+- D) PAM-only data  
 
-**9.** First ML use case to validate ROI is often:
+**9.** `top_n_games_per_player` ranks by:
 
-- A) Real-time feature store  
-- B) Churn or segmentation  
-- C) Blockchain ledger  
-- D) Data catalog only  
+- A) Round count per (player, game) descending  
+- B) Registration date  
+- C) Withdrawal amount  
+- D) Session_id lexicographic order  
 
-**10.** A feature store is recommended when:
+**10.** Cold-start for a new player with no history often falls back to:
 
-- A) Day one of analytics  
-- B) Multiple models share features and online inference matters  
-- C) You have no warehouse  
-- D) Only batch reports needed  
+- A) Personalized CF from similar players only  
+- B) Global popularity or content-based defaults  
+- C) Empty recommendations forever  
+- D) Churn model scores  
 
 ---
 
 ## Answers
 
-1. C · 2. B · 3. B · 4. B · 5. B · 6. B · 7. B · 8. B · 9. B · 10. B
+1. B · 2. B · 3. B · 4. B · 5. A · 6. B · 7. A · 8. B · 9. A · 10. B

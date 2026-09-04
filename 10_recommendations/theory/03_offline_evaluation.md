@@ -1,29 +1,31 @@
 # Offline Evaluation
 
-Hit rate, coverage, diversity.
+Evaluate recommenders on historical data before A/B tests.
 
-## Key concepts
+## Holdout scheme
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+Hide last N interactions per player. Train on earlier history. Predict hidden games.
 
-## Example
+## Metrics
 
-```python
-import pandas as pd
+| Metric | Definition |
+|--------|------------|
+| Hit rate@K | Fraction of users with ≥1 hit in top K |
+| MRR | Mean reciprocal rank of first hit |
+| Coverage | % of catalog recommended |
+| Diversity | Average dissimilarity within list |
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
-```
+## iGaming specifics
 
-## Practice
+- Weight by **GGR contribution** of recommended games, not just clicks
+- Penalize recommending games player already plays heavily (unless cross-sell goal)
 
-Complete the module challenges and run pytest to verify your implementation.
+## Online validation
+
+Run A/B test: control = popularity, treatment = CF model.
+
+Primary KPI: incremental GGR per exposed user.
+
+## Key takeaway
+
+Offline hit rate **does not guarantee** revenue lift — always plan an A/B test.

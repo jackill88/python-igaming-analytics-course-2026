@@ -1,29 +1,39 @@
 # Session Metrics
 
-Duration, rounds, GGR per session.
+Once sessions are defined, aggregate round-level RGS data to session grain.
 
-## Key concepts
+## Core session metrics
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+| Metric | Formula |
+|--------|---------|
+| Session duration | `max(timestamp) - min(timestamp)` |
+| Rounds per session | `COUNT(round_id)` |
+| Bets per session | `SUM(bet_amount)` |
+| GGR per session | `SUM(bet_amount - win_amount)` |
+| Games per session | `COUNT(DISTINCT game_id)` |
 
-## Example
+## Typical distributions
+
+- **Casual players:** many short sessions, few rounds
+- **Whales:** fewer, longer sessions, high GGR
+- **Weekend players:** session count spikes Fri–Sun
+
+## Use cases
+
+- Responsible gaming: flag unusually long sessions
+- Product: optimize lobby → first bet time
+- CRM: trigger re-engagement after short, low-GGR sessions
+
+## Example aggregation
 
 ```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+sessions = events.groupby(["player_id", "session_id"]).agg(
+    duration_minutes=("timestamp", lambda s: (s.max() - s.min()).total_seconds() / 60),
+    round_count=("round_id", "count"),
+    ggr=("bet_amount", lambda s: (s - events.loc[s.index, "win_amount"]).sum()),
+)
 ```
 
-## Practice
+## Key takeaway
 
-Complete the module challenges and run pytest to verify your implementation.
+Session metrics bridge **event-level RGS data** and **behavioral player profiles**.

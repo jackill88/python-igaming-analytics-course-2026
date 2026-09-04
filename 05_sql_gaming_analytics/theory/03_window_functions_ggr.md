@@ -1,29 +1,47 @@
 # Window Functions for GGR
 
-Rolling sums and running totals.
+Window functions compute **rolling** and **running** metrics without collapsing rows.
 
-## Key concepts
+## Rolling 7-day GGR
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
-
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```sql
+SELECT
+    activity_date,
+    ggr,
+    SUM(ggr) OVER (
+        ORDER BY activity_date
+        ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+    ) AS rolling_7d_ggr
+FROM daily_ggr
+ORDER BY activity_date;
 ```
 
-## Practice
+## Running total by player
 
-Complete the module challenges and run pytest to verify your implementation.
+```sql
+SELECT
+    player_id,
+    timestamp,
+    SUM(bet_amount - win_amount) OVER (
+        PARTITION BY player_id
+        ORDER BY timestamp
+    ) AS cumulative_ggr
+FROM rounds;
+```
+
+## Lag for session gaps
+
+```sql
+LAG(timestamp) OVER (PARTITION BY player_id ORDER BY timestamp) AS prev_ts
+```
+
+## Frame clauses
+
+| Frame | Meaning |
+|-------|---------|
+| `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW` | Last 7 days including today |
+| `RANGE BETWEEN INTERVAL 6 DAY PRECEDING AND CURRENT ROW` | Calendar-aware (engine-dependent) |
+
+## Key takeaway
+
+Windows preserve row grain — use them for **trends and running totals**, `GROUP BY` for **snapshots**.

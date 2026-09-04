@@ -1,29 +1,40 @@
 # Rolling Windows
 
-7d and 30d behavioral aggregates.
+Rolling features capture **recent behavior** for ML and segmentation.
 
-## Key concepts
+## Common windows
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+| Window | Features |
+|--------|----------|
+| 7d | sessions_7d, ggr_7d, avg_bet_7d |
+| 30d | sessions_30d, ggr_30d, avg_bet_30d |
+| 90d | Longer-term value signals |
 
-## Example
+## Point-in-time rule
 
-```python
-import pandas as pd
+For feature_date = `2024-06-15`:
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```
+Include events where timestamp ∈ [2024-06-08 00:00, 2024-06-15 23:59:59]
 ```
 
-## Practice
+Never include events **after** feature_date (label leakage).
 
-Complete the module challenges and run pytest to verify your implementation.
+## SQL rolling example
+
+```sql
+SELECT player_id, feature_date,
+       COUNT(DISTINCT session_id) AS sessions_7d
+FROM rounds
+WHERE timestamp >= feature_date - INTERVAL 6 DAY
+  AND timestamp < feature_date + INTERVAL 1 DAY
+GROUP BY player_id, feature_date;
+```
+
+## Python
+
+Use pandas `rolling` on daily aggregates, or filter-then-aggregate per snapshot date.
+
+## Key takeaway
+
+Rolling windows must use **consistent inclusive/exclusive bounds** across training and scoring.

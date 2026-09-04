@@ -88,9 +88,11 @@ streamlit run app/main.py
 
 Progress is stored in `data/progress.db` (created on first launch).
 
-### Android app (Flet, offline, theory only)
+### Android app (Flet, offline, theory & quizzes)
 
-An offline Android navigator mirrors the Streamlit UI but skips coding challenges — browse theory lessons and quizzes, track progress locally.
+An offline Android navigator mirrors the Streamlit UI — browse theory lessons, take **interactive quizzes** (shuffled answers, instant scoring), and track progress locally.
+
+**Prerequisites:** [Flutter SDK](https://docs.flutter.dev/get-started/install/linux) on your `PATH` (e.g. `export PATH="$HOME/flutter/3.44.8/bin:$PATH"`). Run `flet doctor` if the build fails.
 
 ```bash
 pip install -r requirements-flet.txt
@@ -98,13 +100,20 @@ pip install -r requirements-flet.txt
 # Development (uses repo course content directly)
 flet run flet_app/main.py
 
-# Build APK (bundle markdown first, then compile)
+# Build APK — run from repo root (requires pyproject.toml)
 python flet_app/prepare_assets.py
-cd flet_app
+export PATH="$HOME/flutter/3.44.8/bin:$PATH"   # adjust to your Flutter install
 flet build apk
 ```
 
 The APK is written to `build/apk/`. Progress on a device is stored in the app's private storage.
+
+If you see `Invalid kernel binary format version`, clear stale Dart caches and rebuild:
+
+```bash
+rm -rf flet_app/build build
+flet build apk
+```
 
 ## Project Layout
 
@@ -136,6 +145,14 @@ The APK is written to `build/apk/`. Progress on a device is stored in the app's 
 - **Shared utilities:** Import helpers from `shared` (`shared.datasets`, `shared.sql_helpers`).
 
 Reference solutions for maintainers live in `_scripts/solutions.py` (not required for students).
+
+Regenerate course content:
+
+```bash
+python3 _scripts/fix_theory.py                      # theory lessons
+python3 _scripts/fix_quizzes_challenges_tests.py    # quizzes, challenges, tests
+python3 _scripts/verify_tests.py                    # verify all tests vs solutions
+```
 
 ## Tech Stack
 

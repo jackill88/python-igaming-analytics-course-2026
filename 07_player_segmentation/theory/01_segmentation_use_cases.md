@@ -1,29 +1,32 @@
 # Segmentation Use Cases
 
-Whales, casuals, bonus hunters.
+Segmentation groups players by **behavior** for targeted product and CRM actions.
 
-## Key concepts
+## Typical iGaming segments
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+| Segment | Signals | Action |
+|---------|---------|--------|
+| Whales | High ggr_30d, frequent sessions | VIP host, exclusive games |
+| Casuals | Low bet, occasional play | Onboarding offers |
+| Weekend players | Activity Fri–Sun only | Weekend promotions |
+| Churn-risk | High days_since_last_session, falling sessions | Win-back campaign |
+| Bonus hunters | Needs PAM bonus data | Restrict offers |
 
-## Example
+## Features for clustering
 
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```
+days_since_last_session
+sessions_30d
+avg_bet_30d
+ggr_30d
+favorite_game_30d (encoded)
 ```
 
-## Practice
+## Batch vs rules
 
-Complete the module challenges and run pytest to verify your implementation.
+- **Rules:** `IF ggr_30d > X THEN whale` — interpretable, brittle
+- **Clustering:** data-driven groups — needs profiling and naming
+
+## Key takeaway
+
+Segments are useful when each group gets a **different business action** — avoid segmentation for its own sake.

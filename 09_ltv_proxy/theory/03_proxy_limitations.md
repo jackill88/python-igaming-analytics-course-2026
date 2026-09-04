@@ -1,29 +1,31 @@
 # Proxy Limitations
 
-What PAM data would unlock.
+Be explicit about what RGS-based LTV models **cannot** do.
 
-## Key concepts
+## Missing from RGS
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+| Factor | Impact |
+|--------|--------|
+| Bonuses | Overstates value of bonus-driven play |
+| Deposits / payment fees | True margin unknown |
+| Provider fees | Game-level profitability |
+| Taxes & regulatory levies | Market-specific |
+| Cross-sell to sportsbook | Needs unified PAM |
 
-## Example
+## Risk of overconfidence
 
-```python
-import pandas as pd
+High-GGR players who only play on bonus credit look valuable in RGS but may be **NGR-negative**.
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
-```
+## Communication template
 
-## Practice
+> "This model ranks players by expected **gameplay GGR**. With PAM integration we can convert to **NGR-based LTV** for finance."
 
-Complete the module challenges and run pytest to verify your implementation.
+## Roadmap
+
+1. Ship GGR proxy (now)
+2. Integrate PAM bonus flags (phase 2)
+3. True NGR LTV for finance reporting (phase 3)
+
+## Key takeaway
+
+Transparency about limitations builds trust with stakeholders more than overstating model scope.

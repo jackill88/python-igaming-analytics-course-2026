@@ -1,29 +1,30 @@
 # Recommendation Use Cases
 
-Games, categories, providers.
+## What to recommend in iGaming
 
-## Key concepts
+- **Games** — primary RGS use case
+- **Categories** — slots, table, live dealer
+- **Providers** — studio preferences
+- **Promotions** — needs PAM / CRM integration
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+## Signals from RGS
 
-## Example
+- Play history (player × game matrix)
+- Session context (current game, time of day)
+- Similar players' preferences (collaborative filtering)
 
-```python
-import pandas as pd
+## Placement
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
-```
+- Lobby "Recommended for you"
+- Post-session "Try this next"
+- Email / push with deep link to game
 
-## Practice
+## Success metrics
 
-Complete the module challenges and run pytest to verify your implementation.
+- Click-through rate on recommendation
+- First bet within 24h of recommendation
+- Incremental GGR vs control group
+
+## Key takeaway
+
+Start with **offline evaluation** on historical play — before real-time serving infrastructure.

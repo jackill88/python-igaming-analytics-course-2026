@@ -1,29 +1,34 @@
 # Session Definitions
 
-RGS session_id vs derived sessions.
+A **session** is a contiguous period of player activity.
 
-## Key concepts
+## RGS-provided session_id
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+Many RGS platforms emit `session_id` with each round. Use it when trustworthy.
 
-## Example
+Validate:
 
-```python
-import pandas as pd
+- Sessions don't span implausible durations (e.g. 48 hours)
+- `session_id` resets on logout / timeout rules you expect
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+## Derived sessions (gap-based)
+
+When `session_id` is missing or unreliable:
+
+```
+New session when: timestamp - previous_timestamp > gap_threshold
+Typical gap: 30 minutes
 ```
 
-## Practice
+Partition by `player_id`, order by `timestamp`.
 
-Complete the module challenges and run pytest to verify your implementation.
+## Session grain vs round grain
+
+| Grain | Use for |
+|-------|---------|
+| Round | GGR, game analytics |
+| Session | Engagement duration, bets per visit |
+
+## Key takeaway
+
+Document whether sessions come from **RGS** or **derived logic** — mixing breaks trend comparisons.

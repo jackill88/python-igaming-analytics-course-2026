@@ -1,29 +1,36 @@
 # Collaborative Filtering
 
-User-item matrix factorization.
+Recommend items based on **similar users' behavior**.
 
-## Key concepts
+## User-item matrix
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
-
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```
+           slots_a  roulette_b  blackjack_c
+player_1       12          0            3
+player_2        0         45            0
+player_3        8          2            0
 ```
 
-## Practice
+Values = round counts or implicit feedback (played = 1).
 
-Complete the module challenges and run pytest to verify your implementation.
+## Approaches
+
+| Method | Idea |
+|--------|------|
+| Item-based CF | Similar games played by same users |
+| Matrix factorization | Latent taste factors |
+| LightFM | Hybrid (optional side features) |
+| Popular baseline | Global top games not yet played |
+
+## Cold start
+
+- **New player:** popular games in their country / device
+- **New game:** content-based (category, provider, RTP)
+
+## This course baseline
+
+`recommend_popular_unplayed` — strong first baseline before CF.
+
+## Key takeaway
+
+Always benchmark CF against **popularity baseline** — often 80% of the gain for 20% of the complexity.

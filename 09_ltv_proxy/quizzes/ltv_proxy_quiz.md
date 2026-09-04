@@ -4,78 +4,78 @@
 
 ---
 
-**1.** With RGS-only data, which metric is directly computable?
+**1.** True financial LTV typically requires:
 
-- A) NGR  
-- B) ARPU  
-- C) GGR  
-- D) Bonus cost  
+- A) RGS rounds only  
+- B) PAM revenue, bonuses, and costs  
+- C) Session duration only  
+- D) Game thumbnails  
 
-**2.** GGR is defined as:
+**2.** With RGS-only data, the practical LTV proxy target is:
 
-- A) Deposits minus withdrawals  
-- B) Bets minus wins  
-- C) Revenue minus taxes  
-- D) Wins minus bets  
+- A) future_ggr or future turnover  
+- B) Exact NGR after tax  
+- C) Payment processor fee  
+- D) CRM email LTV  
 
-**3.** DAU counts:
+**3.** `future_ggr_30d` labels sum GGR:
 
-- A) Total bets per day  
-- B) Unique active players per day  
-- C) New registrations per day  
-- D) Sessions per day  
+- A) Before the snapshot date  
+- B) In the period after snapshot through the horizon  
+- C) Across all historical time  
+- D) From bonus ledger entries  
 
-**4.** Stickiness is typically:
+**4.** LTV regression differs from churn classification because:
 
-- A) WAU / MAU  
-- B) DAU / MAU  
-- C) DAU / WAU  
-- D) MAU / DAU  
+- A) It predicts a continuous value  
+- B) It never uses gameplay features  
+- C) It requires deep learning only  
+- D) It ignores player_id grain  
 
-**5.** D7 retention measures players who:
+**5.** A player with high past GGR but zero future activity illustrates:
 
-- A) Deposit on day 7  
-- B) Return 7 days after registration  
-- C) Play 7 games  
-- D) Win on day 7  
+- A) Why past-only features may not predict future value  
+- B) Perfect LTV accuracy  
+- C) That labels are unnecessary  
+- D) PAM integration is automatic  
 
-**6.** Churn is often defined as:
+**6.** LightGBM regressor is appropriate when:
 
-- A) One losing session  
-- B) 30 days inactive  
-- C) Negative GGR  
-- D) Account closed  
+- A) Target is binary churn  
+- B) Target is numeric future GGR  
+- C) No numeric features exist  
+- D) You need SQL parsing  
 
-**7.** player_features_daily should use:
+**7.** Communicating LTV proxy limitations means stating:
 
-- A) Future data for accuracy  
-- B) Point-in-time features only  
-- C) PAM wallet balances only  
-- D) Real-time Feast only  
+- A) It equals audited financial LTV  
+- B) It excludes bonuses, tax, and payment costs  
+- C) It replaces finance entirely  
+- D) It requires no caveats  
 
-**8.** With RGS-only data, LTV models should predict:
+**8.** Point-in-time LTV features use history:
 
-- A) True financial LTV  
-- B) future_ggr or turnover proxy  
-- C) Payment processor fees  
-- D) CRM email open rate  
+- A) Up to snapshot date  
+- B) Including the entire future horizon  
+- C) From next week's campaigns  
+- D) From other operators  
 
-**9.** First ML use case to validate ROI is often:
+**9.** Negative future GGR in the label window means:
 
-- A) Real-time feature store  
-- B) Churn or segmentation  
-- C) Blockchain ledger  
-- D) Data catalog only  
+- A) Player won more than they bet in that future window  
+- B) Data is always invalid  
+- C) The model must classify instead  
+- D) round_id is duplicated  
 
-**10.** A feature store is recommended when:
+**10.** Stakeholders often accept GGR-based LTV proxies when:
 
-- A) Day one of analytics  
-- B) Multiple models share features and online inference matters  
-- C) You have no warehouse  
-- D) Only batch reports needed  
+- A) PAM integration is not yet available  
+- B) They need exact NGR on day one  
+- C) No gameplay data exists  
+- D) Only emails are tracked  
 
 ---
 
 ## Answers
 
-1. C · 2. B · 3. B · 4. B · 5. B · 6. B · 7. B · 8. B · 9. B · 10. B
+1. B · 2. A · 3. B · 4. A · 5. A · 6. B · 7. B · 8. A · 9. A · 10. A

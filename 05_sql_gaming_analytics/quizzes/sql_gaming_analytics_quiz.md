@@ -4,78 +4,78 @@
 
 ---
 
-**1.** With RGS-only data, which metric is directly computable?
+**1.** The grain of `rounds(round_id, player_id, game_id, …)` is:
 
-- A) NGR  
-- B) ARPU  
-- C) GGR  
-- D) Bonus cost  
+- A) One row per player per day  
+- B) One row per round  
+- C) One row per session summary  
+- D) One row per game catalog entry  
 
-**2.** GGR is defined as:
+**2.** Top games by GGR in SQL typically use:
 
-- A) Deposits minus withdrawals  
-- B) Bets minus wins  
-- C) Revenue minus taxes  
-- D) Wins minus bets  
+- A) `SUM(bet_amount - win_amount) GROUP BY game_id`  
+- B) `COUNT(DISTINCT player_id)` only  
+- C) `MAX(win_amount)`  
+- D) `AVG(deposit_amount)`  
 
-**3.** DAU counts:
+**3.** Player favorite game by round count should break ties by:
 
-- A) Total bets per day  
-- B) Unique active players per day  
-- C) New registrations per day  
-- D) Sessions per day  
+- A) Highest GGR first, then random  
+- B) game_id ascending (deterministic tie-break)  
+- C) Latest timestamp only  
+- D) Alphabetical player_id  
 
-**4.** Stickiness is typically:
+**4.** `ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY cnt DESC, game_id ASC)` assigns:
 
-- A) WAU / MAU  
-- B) DAU / MAU  
-- C) DAU / WAU  
-- D) MAU / DAU  
+- A) The same rank to all games  
+- B) Rank 1 to the most-played game per player  
+- C) Global game popularity  
+- D) Session duration  
 
-**5.** D7 retention measures players who:
+**5.** A rolling 7-day GGR window with `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW` includes:
 
-- A) Deposit on day 7  
-- B) Return 7 days after registration  
-- C) Play 7 games  
-- D) Win on day 7  
+- A) 6 days total  
+- B) 7 days including the current row  
+- C) 8 days excluding the current row  
+- D) Only future days  
 
-**6.** Churn is often defined as:
+**6.** DuckDB is useful in this course because:
 
-- A) One losing session  
-- B) 30 days inactive  
-- C) Negative GGR  
-- D) Account closed  
+- A) It replaces the RGS entirely  
+- B) It runs analytical SQL in-memory against pandas DataFrames  
+- C) It requires a dedicated cluster  
+- D) It only supports NoSQL  
 
-**7.** player_features_daily should use:
+**7.** When joining rounds to a game catalog, use:
 
-- A) Future data for accuracy  
-- B) Point-in-time features only  
-- C) PAM wallet balances only  
-- D) Real-time Feast only  
+- A) player_id  
+- B) game_id  
+- C) round_id  
+- D) session_id  
 
-**8.** With RGS-only data, LTV models should predict:
+**8.** Filtering `WHERE activity_date BETWEEN …` before aggregating helps:
 
-- A) True financial LTV  
-- B) future_ggr or turnover proxy  
-- C) Payment processor fees  
-- D) CRM email open rate  
+- A) Increase storage costs  
+- B) Reduce scanned data and improve performance  
+- C) Eliminate the need for indexes  
+- D) Convert GGR to NGR  
 
-**9.** First ML use case to validate ROI is often:
+**9.** Window functions differ from `GROUP BY` because:
 
-- A) Real-time feature store  
-- B) Churn or segmentation  
-- C) Blockchain ledger  
-- D) Data catalog only  
+- A) They remove all row detail  
+- B) They can compute running/rolling metrics while keeping row grain  
+- C) They only work on strings  
+- D) They require PAM data  
 
-**10.** A feature store is recommended when:
+**10.** SQL for player-game affinity often starts with:
 
-- A) Day one of analytics  
-- B) Multiple models share features and online inference matters  
-- C) You have no warehouse  
-- D) Only batch reports needed  
+- A) `SELECT * FROM bonuses`  
+- B) Counting rounds or bets per (player_id, game_id)  
+- C) Deleting duplicate sessions  
+- D) Importing CRM emails  
 
 ---
 
 ## Answers
 
-1. C · 2. B · 3. B · 4. B · 5. B · 6. B · 7. B · 8. B · 9. B · 10. B
+1. B · 2. A · 3. B · 4. B · 5. B · 6. B · 7. B · 8. B · 9. B · 10. B

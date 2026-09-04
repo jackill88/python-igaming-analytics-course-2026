@@ -4,78 +4,78 @@
 
 ---
 
-**1.** With RGS-only data, which metric is directly computable?
-
-- A) NGR  
-- B) ARPU  
-- C) GGR  
-- D) Bonus cost  
-
-**2.** GGR is defined as:
-
-- A) Deposits minus withdrawals  
-- B) Bets minus wins  
-- C) Revenue minus taxes  
-- D) Wins minus bets  
-
-**3.** DAU counts:
-
-- A) Total bets per day  
-- B) Unique active players per day  
-- C) New registrations per day  
-- D) Sessions per day  
-
-**4.** Stickiness is typically:
-
-- A) WAU / MAU  
-- B) DAU / MAU  
-- C) DAU / WAU  
-- D) MAU / DAU  
-
-**5.** D7 retention measures players who:
-
-- A) Deposit on day 7  
-- B) Return 7 days after registration  
-- C) Play 7 games  
-- D) Win on day 7  
-
-**6.** Churn is often defined as:
+**1.** A common iGaming churn definition is:
 
 - A) One losing session  
-- B) 30 days inactive  
-- C) Negative GGR  
-- D) Account closed  
+- B) 30 consecutive days without activity  
+- C) Negative lifetime GGR  
+- D) Account closed in PAM only  
 
-**7.** player_features_daily should use:
+**2.** The ML target `inactive_next_30_days` means:
 
-- A) Future data for accuracy  
-- B) Point-in-time features only  
-- C) PAM wallet balances only  
-- D) Real-time Feast only  
+- A) Player was inactive in the past 30 days  
+- B) No activity in the 30 days after the snapshot date  
+- C) Player deleted the app yesterday  
+- D) GGR was zero on snapshot day  
 
-**8.** With RGS-only data, LTV models should predict:
+**3.** Churn features should be computed using data:
 
-- A) True financial LTV  
-- B) future_ggr or turnover proxy  
-- C) Payment processor fees  
-- D) CRM email open rate  
+- A) Up to and including the snapshot date only  
+- B) From the entire future horizon  
+- C) From CRM emails sent after snapshot  
+- D) From next month's deposits  
 
-**9.** First ML use case to validate ROI is often:
+**4.** LightGBM/XGBoost are popular for churn because:
 
-- A) Real-time feature store  
-- B) Churn or segmentation  
-- C) Blockchain ledger  
-- D) Data catalog only  
+- A) They require no features  
+- B) They handle tabular heterogeneous features well  
+- C) They only work on text  
+- D) They output SQL directly  
 
-**10.** A feature store is recommended when:
+**5.** `days_since_last_session` is a:
 
-- A) Day one of analytics  
-- B) Multiple models share features and online inference matters  
-- C) You have no warehouse  
-- D) Only batch reports needed  
+- A) Recency feature  
+- B) Provider fee  
+- C) Game category label  
+- D) Warehouse partition key  
+
+**6.** Precision at top 10% is useful when:
+
+- A) CRM budget limits who you can contact  
+- B) You must contact every player  
+- C) You have unlimited outreach capacity  
+- D) Labels are all zeros  
+
+**7.** Training labels need players who:
+
+- A) Were active in the lookback window before snapshot  
+- B) Registered after the snapshot  
+- C) Never placed a bet  
+- D) Only appear in PAM  
+
+**8.** Class imbalance in churn often leads to:
+
+- A) Always predicting "not churn" with high accuracy but low value  
+- B) Perfect recall without effort  
+- C) No need for evaluation metrics  
+- D) Elimination of feature engineering  
+
+**9.** A churn model deployed nightly typically scores:
+
+- A) Real-time every bet  
+- B) Batch predictions into a table for CRM  
+- C) Only historical cohorts  
+- D) Provider invoices  
+
+**10.** RGS-only churn models cannot directly use:
+
+- A) sessions_30d  
+- B) avg_bet_30d  
+- C) Deposit frequency and bonus usage  
+- D) days_since_last_session  
 
 ---
 
 ## Answers
 
-1. C · 2. B · 3. B · 4. B · 5. B · 6. B · 7. B · 8. B · 9. B · 10. B
+1. B · 2. B · 3. A · 4. B · 5. A · 6. A · 7. A · 8. A · 9. B · 10. C

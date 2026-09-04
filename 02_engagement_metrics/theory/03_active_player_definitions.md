@@ -1,29 +1,34 @@
 # Active Player Definitions
 
-Bet placed vs login vs round played.
+Different teams define "active" differently. Misaligned definitions cause conflicting KPIs.
 
-## Key concepts
+## Common definitions in iGaming
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+| Definition | Data source | Pros | Cons |
+|------------|-------------|------|------|
+| Round played | RGS | Objective, revenue-linked | Misses lobby browsers |
+| Bet placed | RGS | Revenue-aligned | Excludes free-play |
+| Deposit made | PAM | Monetization signal | Ignores existing balance play |
+| Login | PAM | Broad reach | Inflates vs real play |
 
-## Example
+## With RGS-only data
 
-```python
-import pandas as pd
+Recommended default: **player with ≥1 round on date D**.
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+Build a daily spine:
+
+```
+player_daily_activity(player_id, activity_date)
 ```
 
-## Practice
+Populate from `MIN(DATE(timestamp))` per player per day from round-level events.
 
-Complete the module challenges and run pytest to verify your implementation.
+## Edge cases
+
+- **Cross-midnight sessions** — attribute activity to the date of each round, not session start
+- **Timezone** — store UTC, convert to reporting timezone at aggregate time
+- **Test accounts** — filter `is_test = false` if flagged in dim_player
+
+## Key takeaway
+
+Document your active definition in the **data catalog** and reuse it for DAU, retention, and churn labels.

@@ -1,29 +1,43 @@
 # dbt Feature Tables
 
-player_features_daily pattern.
+Phase 2: transform raw rounds into analytics-ready marts.
 
-## Key concepts
+## Layering
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
-
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```
+stg_rgs_rounds        -- clean, rename, cast
+int_player_daily      -- daily aggregates per player
+mart_player_features  -- player_features_daily for ML
+mart_cohort_retention -- reporting
 ```
 
-## Practice
+## Example dbt model: player_features_daily
 
-Complete the module challenges and run pytest to verify your implementation.
+```sql
+-- models/mart/player_features_daily.sql
+SELECT
+    player_id,
+    {{ var('feature_date') }} AS feature_date,
+    DATE_DIFF('day', MAX(timestamp), {{ var('feature_date') }}) AS days_since_last_session,
+    COUNT(DISTINCT session_id) AS sessions_30d,
+    AVG(bet_amount) AS avg_bet_30d,
+    SUM(bet_amount - win_amount) AS ggr_30d
+FROM {{ ref('stg_rgs_rounds') }}
+WHERE timestamp >= {{ var('feature_date') }} - INTERVAL 30 DAY
+  AND timestamp < {{ var('feature_date') }}
+GROUP BY player_id
+```
+
+## Testing in dbt
+
+- `unique(player_id, feature_date)`
+- `not_null` on key columns
+- Referential integrity to `dim_player`
+
+## Why dbt before Feast
+
+Single transformation layer shared by BI and ML. Add feature store only when online serving requires it.
+
+## Key takeaway
+
+dbt models are **versioned, tested SQL** — the right first "feature platform" for iGaming analytics.

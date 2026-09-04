@@ -4,78 +4,78 @@
 
 ---
 
-**1.** With RGS-only data, which metric is directly computable?
+**1.** RGS `session_id` differs from derived sessions because:
 
-- A) NGR  
-- B) ARPU  
-- C) GGR  
-- D) Bonus cost  
+- A) RGS sessions are always 30 minutes  
+- B) Derived sessions are recomputed from event gaps  
+- C) RGS sessions ignore player_id  
+- D) Derived sessions require PAM data  
 
-**2.** GGR is defined as:
+**2.** Gap-based sessionization splits a session when:
 
-- A) Deposits minus withdrawals  
-- B) Bets minus wins  
-- C) Revenue minus taxes  
-- D) Wins minus bets  
+- A) The player changes game_id  
+- B) Time between consecutive events exceeds a threshold  
+- C) GGR turns negative  
+- D) round_id duplicates appear  
 
-**3.** DAU counts:
+**3.** Session duration is typically computed as:
 
-- A) Total bets per day  
-- B) Unique active players per day  
-- C) New registrations per day  
-- D) Sessions per day  
+- A) Sum of bet amounts  
+- B) max(timestamp) − min(timestamp) within the session  
+- C) Count of unique game_ids  
+- D) Registration date minus first bet  
 
-**4.** Stickiness is typically:
+**4.** A 30-minute gap threshold means a 31-minute pause:
 
-- A) WAU / MAU  
-- B) DAU / MAU  
-- C) DAU / WAU  
-- D) MAU / DAU  
+- A) Continues the same session  
+- B) Starts a new derived session  
+- C) Deletes the events  
+- D) Merges two players  
 
-**5.** D7 retention measures players who:
+**5.** GGR per session aggregates:
 
-- A) Deposit on day 7  
-- B) Return 7 days after registration  
-- C) Play 7 games  
-- D) Win on day 7  
+- A) Only win amounts  
+- B) Sum(bet_amount) − sum(win_amount) per session  
+- C) Average bet across all players  
+- D) Deposits minus withdrawals  
 
-**6.** Churn is often defined as:
+**6.** Before sessionization, events should be sorted by:
 
-- A) One losing session  
-- B) 30 days inactive  
-- C) Negative GGR  
-- D) Account closed  
+- A) game_id, then round_id  
+- B) player_id, then timestamp  
+- C) bet_amount descending  
+- D) Random shuffle  
 
-**7.** player_features_daily should use:
+**7.** `derived_session_id` usually:
 
-- A) Future data for accuracy  
-- B) Point-in-time features only  
-- C) PAM wallet balances only  
-- D) Real-time Feast only  
+- A) Resets to 1 for each player  
+- B) Is globally unique across all players  
+- C) Matches round_id  
+- D) Comes from PAM  
 
-**8.** With RGS-only data, LTV models should predict:
+**8.** A single-round session has duration:
 
-- A) True financial LTV  
-- B) future_ggr or turnover proxy  
-- C) Payment processor fees  
-- D) CRM email open rate  
+- A) Always 30 minutes  
+- B) Zero minutes (max equals min)  
+- C) Undefined  
+- D) Equal to average bet  
 
-**9.** First ML use case to validate ROI is often:
+**9.** Session metrics help answer:
 
-- A) Real-time feature store  
-- B) Churn or segmentation  
-- C) Blockchain ledger  
-- D) Data catalog only  
+- A) Which provider has the lowest fee  
+- B) How long and how intensely players engage per visit  
+- C) Tax jurisdiction per player  
+- D) Email open rates  
 
-**10.** A feature store is recommended when:
+**10.** Using RGS session_id vs derived sessions requires:
 
-- A) Day one of analytics  
-- B) Multiple models share features and online inference matters  
-- C) You have no warehouse  
-- D) Only batch reports needed  
+- A) Documenting which definition powers each dashboard  
+- B) Always preferring PAM login sessions  
+- C) Ignoring timestamp ordering  
+- D) Dropping round_id  
 
 ---
 
 ## Answers
 
-1. C · 2. B · 3. B · 4. B · 5. B · 6. B · 7. B · 8. B · 9. B · 10. B
+1. B · 2. B · 3. B · 4. B · 5. B · 6. B · 7. A · 8. B · 9. B · 10. A

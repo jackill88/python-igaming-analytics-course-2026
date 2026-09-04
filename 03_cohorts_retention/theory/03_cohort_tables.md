@@ -1,29 +1,38 @@
 # Cohort Tables
 
-Building and reading retention matrices.
+A cohort retention table is a matrix:
 
-## Key concepts
-
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
-
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```
+              d1    d7    d14   d30
+cohort_week
+2024-05-01   45%   22%   18%   12%
+2024-05-08   48%   25%   20%   ...
 ```
 
-## Practice
+Rows = cohorts, columns = days since anchor, values = retention rate.
 
-Complete the module challenges and run pytest to verify your implementation.
+## Building the table
+
+1. Assign each player to a cohort (registration week)
+2. For each `(cohort, day_offset)`, count players active on `cohort_date + offset`
+3. Divide by cohort size
+
+## Reading the table
+
+- **Horizontal (across columns):** decay curve for one cohort
+- **Vertical (down rows):** whether newer cohorts retain better at D7
+- **Diagonal:** calendar-time effects (seasonality, campaigns)
+
+## Visualization
+
+Heatmaps highlight improving (darker later cohorts) vs declining retention.
+
+## Warehouse design
+
+Materialize as `mart_cohort_retention(cohort_week, day_offset, retained_players, cohort_size, retention_rate)`.
+
+Refresh nightly from `player_daily_activity`.
+
+## Key takeaway
+
+Cohort tables are the standard product analytics artifact for **onboarding and engagement quality** over time.

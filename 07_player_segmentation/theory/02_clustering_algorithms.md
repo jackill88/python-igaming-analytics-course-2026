@@ -1,29 +1,39 @@
 # Clustering Algorithms
 
-K-Means, GMM, HDBSCAN trade-offs.
+## K-Means
 
-## Key concepts
-
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
+- **Pros:** Fast, simple, scales well
+- **Cons:** Assumes spherical clusters; pick K manually
+- **Use when:** Rough behavioral groupings, large player base
 
 ```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+from sklearn.cluster import KMeans
+KMeans(n_clusters=4, random_state=42, n_init=10)
 ```
 
-## Practice
+## Gaussian Mixture Models (GMM)
 
-Complete the module challenges and run pytest to verify your implementation.
+- Soft cluster assignments (probability per segment)
+- Better for overlapping groups
+
+## HDBSCAN
+
+- Finds arbitrary shapes; auto-estimates cluster count
+- Labels noise points as −1
+- Slower; great for exploration
+
+## Preprocessing
+
+1. Select numeric features
+2. Handle nulls (fill 0 or median)
+3. **Standardize** (`StandardScaler`) — critical for K-Means
+
+## Choosing K
+
+- Elbow method (inertia vs K)
+- Silhouette score
+- Business interpretability of profiles
+
+## Key takeaway
+
+Clustering finds **structure** — you still must **name segments** and validate with domain experts.

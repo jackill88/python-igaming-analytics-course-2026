@@ -1,29 +1,40 @@
 # player_features_daily
 
-The core feature table pattern.
+The central feature table for iGaming ML. One row per `(player_id, feature_date)`.
 
-## Key concepts
+## Recommended columns
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
-
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```
+player_id
+feature_date
+days_since_last_session
+sessions_7d
+sessions_30d
+avg_bet_7d
+avg_bet_30d
+ggr_7d
+ggr_30d
+favorite_game_7d
+rounds_7d
 ```
 
-## Practice
+## Build pattern (dbt-style)
 
-Complete the module challenges and run pytest to verify your implementation.
+1. Start from `rounds` fact table
+2. Filter events with `timestamp < feature_date` (no leakage)
+3. Aggregate rolling 7d / 30d windows ending `feature_date - 1 day` or end-of-day policy
+4. Join dimension attributes (country, registration_date)
+
+## Why daily grain?
+
+- Batch scoring nightly for CRM
+- Aligns with churn labels (inactive next 30 days)
+- Easy to audit point-in-time correctness
+
+## Storage
+
+Partition by `feature_date`. Retain 90–365 days depending on model needs.
+
+## Key takeaway
+
+`player_features_daily` is the **contract between analytics and ML** — version and document every column.

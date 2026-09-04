@@ -1,29 +1,43 @@
 # Analytical SQL for Gaming
 
-Grain and joins on RGS data.
+RGS data lives in round-level fact tables. Analytical SQL transforms it into product and revenue insights.
 
-## Key concepts
+## Core tables
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
-
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```sql
+rounds(round_id, player_id, session_id, game_id, timestamp, bet_amount, win_amount)
+games(game_id, game_name, category, provider)
+players(player_id, registration_date, country)
 ```
 
-## Practice
+## Grain discipline
 
-Complete the module challenges and run pytest to verify your implementation.
+Every query should declare grain explicitly:
+
+- One row per round → GGR per round
+- One row per player per day → daily activity
+- One row per player per game → affinity
+
+## Common patterns
+
+```sql
+-- GGR by game
+SELECT game_id, SUM(bet_amount - win_amount) AS ggr
+FROM rounds
+GROUP BY game_id;
+
+-- Top players by turnover
+SELECT player_id, SUM(bet_amount) AS turnover
+FROM rounds
+GROUP BY player_id
+ORDER BY turnover DESC
+LIMIT 100;
+```
+
+## DuckDB in this course
+
+Tests run your SQL strings against in-memory DuckDB with sample DataFrames — same patterns apply to Postgres/ClickHouse in production.
+
+## Key takeaway
+
+State **grain**, **filters** (date range, test accounts), and **join keys** before writing gaming SQL.

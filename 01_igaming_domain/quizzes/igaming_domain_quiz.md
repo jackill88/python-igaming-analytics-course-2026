@@ -4,78 +4,78 @@
 
 ---
 
-**1.** With RGS-only data, which metric is directly computable?
+**1.** PAM (Player Account Management) primarily holds:
+
+- A) Round-level bet and win events  
+- B) Wallets, KYC, deposits, and bonuses  
+- C) Game server RNG seeds  
+- D) Provider RTP configuration  
+
+**2.** RGS (Remote Gaming Server) data is best described as:
+
+- A) CRM campaign history  
+- B) Gameplay events at round/session grain  
+- C) Payment processor settlements  
+- D) Marketing attribution logs  
+
+**3.** With RGS-only access, which revenue metric is directly computable?
 
 - A) NGR  
 - B) ARPU  
 - C) GGR  
 - D) Bonus cost  
 
-**2.** GGR is defined as:
+**4.** GGR (Gross Gaming Revenue) is defined as:
 
 - A) Deposits minus withdrawals  
 - B) Bets minus wins  
 - C) Revenue minus taxes  
 - D) Wins minus bets  
 
-**3.** DAU counts:
+**5.** Which field uniquely identifies a single gameplay round?
 
-- A) Total bets per day  
-- B) Unique active players per day  
-- C) New registrations per day  
-- D) Sessions per day  
+- A) session_id  
+- B) player_id  
+- C) round_id  
+- D) game_id  
 
-**4.** Stickiness is typically:
+**6.** NGR differs from GGR because NGR also subtracts:
 
-- A) WAU / MAU  
-- B) DAU / MAU  
-- C) DAU / WAU  
-- D) MAU / DAU  
+- A) Player session count  
+- B) Bonuses, taxes, and provider fees  
+- C) Win amounts only  
+- D) Duplicate round_ids  
 
-**5.** D7 retention measures players who:
+**7.** The typical grain of an RGS event stream is:
 
-- A) Deposit on day 7  
-- B) Return 7 days after registration  
-- C) Play 7 games  
-- D) Win on day 7  
+- A) One row per player per month  
+- B) One row per round (bet/win)  
+- C) One row per deposit  
+- D) One row per marketing channel  
 
-**6.** Churn is often defined as:
+**8.** A negative GGR on a single round means:
 
-- A) One losing session  
-- B) 30 days inactive  
-- C) Negative GGR  
-- D) Account closed  
+- A) The player won more than they bet on that round  
+- B) The bet_amount field is missing  
+- C) The round was voided  
+- D) The player churned  
 
-**7.** player_features_daily should use:
+**9.** ARPPU requires data from:
 
-- A) Future data for accuracy  
-- B) Point-in-time features only  
-- C) PAM wallet balances only  
-- D) Real-time Feast only  
+- A) RGS only  
+- B) PAM / payment systems  
+- C) Game provider APIs only  
+- D) Session logs only  
 
-**8.** With RGS-only data, LTV models should predict:
+**10.** Before aggregating RGS events, you should first define:
 
-- A) True financial LTV  
-- B) future_ggr or turnover proxy  
-- C) Payment processor fees  
-- D) CRM email open rate  
-
-**9.** First ML use case to validate ROI is often:
-
-- A) Real-time feature store  
-- B) Churn or segmentation  
-- C) Blockchain ledger  
-- D) Data catalog only  
-
-**10.** A feature store is recommended when:
-
-- A) Day one of analytics  
-- B) Multiple models share features and online inference matters  
-- C) You have no warehouse  
-- D) Only batch reports needed  
+- A) CRM email templates  
+- B) Grain (player, session, round) and keys  
+- C) VIP tier colors  
+- D) App store ranking  
 
 ---
 
 ## Answers
 
-1. C · 2. B · 3. B · 4. B · 5. B · 6. B · 7. B · 8. B · 9. B · 10. B
+1. B · 2. B · 3. C · 4. B · 5. C · 6. B · 7. B · 8. A · 9. B · 10. B

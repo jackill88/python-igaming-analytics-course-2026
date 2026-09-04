@@ -9,12 +9,16 @@ import flet as ft
 
 FLET_APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = FLET_APP_DIR.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
 if str(FLET_APP_DIR) not in sys.path:
     sys.path.insert(0, str(FLET_APP_DIR))
+# Prefer repo course_nav during dev; APK uses flet_app/course_nav from prepare_assets.
+if (REPO_ROOT / "course_nav" / "quiz_parser.py").is_file():
+    sys.path.insert(0, str(REPO_ROOT))
+elif str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-from course_nav.course_loader import discover_modules, read_markdown
+from course_nav.course_loader import ContentItem, discover_modules, read_markdown
+from course_nav.quiz_parser import parse_quiz_markdown
 from course_nav.database import (
     ModuleStatus,
     completion_stats,
@@ -25,6 +29,9 @@ from course_nav.database import (
     touch_module,
 )
 from config import get_app_data_dir, get_course_root
+from quiz_view import build_quiz_controls
+
+_ACCENT = "#1565C0"
 
 STATUS_ICONS = {
     ModuleStatus.NOT_STARTED: "⬜",
@@ -73,14 +80,18 @@ class CourseNavigator:
         self.page_name = "home"
         self.selected_module: str | None = None
         self.content_path: str | None = None
+        self._quiz_selections: dict[str, dict[int, str]] = {}
+        self._quiz_submitted: set[str] = set()
+        self._quiz_option_order: dict[str, dict[int, list[str]]] = {}
 
-        self.body = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO)
+        self.body = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)
         self.progress_text = ft.Text("")
-        self.progress_bar = ft.ProgressBar(value=0, bar_height=6)
+        self.progress_bar = ft.ProgressBar(value=0, bar_height=6, color=_ACCENT)
 
     def start(self) -> None:
         self.page.title = "iGaming Analytics Course"
         self.page.theme_mode = ft.ThemeMode.LIGHT
+        self.page.theme = ft.Theme(color_scheme_seed=_ACCENT)
         self.page.padding = 0
         self.page.appbar = ft.AppBar(
             leading=ft.IconButton(
@@ -111,6 +122,17 @@ class CourseNavigator:
                 return module
         return None
 
+    def _module_content_items(self, module_id: str) -> list[ContentItem]:
+        module = self._find_module(module_id)
+        if module is None:
+            return []
+        items: list[ContentItem] = []
+        if module.readme:
+            items.append(module.readme)
+        items.extend(module.theory)
+        items.extend(module.quizzes)
+        return items
+
     def _go_home(self) -> None:
         self.page_name = "home"
         self.selected_module = None
@@ -131,6 +153,19 @@ class CourseNavigator:
         touch_module(module_id)
         self._render()
 
+    def _navigate_content(self, offset: int) -> None:
+        if not self.selected_module or not self.content_path:
+            return
+        items = self._module_content_items(self.selected_module)
+        paths = [str(item.path) for item in items]
+        try:
+            idx = paths.index(self.content_path)
+        except ValueError:
+            return
+        new_idx = idx + offset
+        if 0 <= new_idx < len(paths):
+            self._open_content(self.selected_module, paths[new_idx])
+
     def _mark_in_progress(self, module_id: str) -> None:
         set_module_status(module_id, ModuleStatus.IN_PROGRESS)
         self._render()
@@ -142,6 +177,12 @@ class CourseNavigator:
     def _reset_module(self, module_id: str) -> None:
         set_module_status(module_id, ModuleStatus.NOT_STARTED)
         self._go_home()
+
+    def _schedule_render(self) -> None:
+        async def _render_async() -> None:
+            self._render()
+
+        self.page.run_task(_render_async)
 
     def _render(self) -> None:
         self._update_drawer_progress()
@@ -246,7 +287,10 @@ class CourseNavigator:
         self.body.controls.extend(
             [
                 ft.Text("iGaming Analytics Course", size=22, weight=ft.FontWeight.BOLD),
-                ft.Text("RGS data · metrics · ML · self-paced", color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.Text(
+                    "RGS data · metrics · ML · offline theory & quizzes",
+                    color=ft.Colors.ON_SURFACE_VARIANT,
+                ),
                 ft.Row(
                     controls=[
                         self._metric_card("Modules", total),
@@ -376,9 +420,49 @@ class CourseNavigator:
                     ft.ListTile(
                         leading=ft.Icon(ft.Icons.QUIZ),
                         title=ft.Text(item.title),
+                        subtitle=ft.Text("Interactive · tap to answer"),
                         on_click=lambda _, p=path: self._open_content(module_id, p),
                     )
                 )
+
+    def _is_quiz_path(self, path: Path, items: list[ContentItem]) -> bool:
+        for item in items:
+            if str(item.path) == str(path):
+                return item.kind == "quiz"
+        return "quiz" in path.stem.lower()
+
+    def _quiz_state(self, content_path: str) -> dict[int, str]:
+        return self._quiz_selections.setdefault(content_path, {})
+
+    def _quiz_order(self, content_path: str) -> dict[int, list[str]]:
+        return self._quiz_option_order.setdefault(content_path, {})
+
+    def _select_quiz_answer(self, content_path: str, question: int, letter: str) -> None:
+        if content_path in self._quiz_submitted or not letter:
+            return
+        self._quiz_state(content_path)[question] = letter
+        self._schedule_render()
+
+    def _submit_quiz(self, content_path: str) -> None:
+        self._quiz_submitted.add(content_path)
+        self._schedule_render()
+
+    def _reset_quiz(self, content_path: str) -> None:
+        self._quiz_submitted.discard(content_path)
+        self._quiz_selections.pop(content_path, None)
+        self._quiz_option_order.pop(content_path, None)
+        self._schedule_render()
+
+    def _render_interactive_quiz(self, content_path: str, quiz) -> list[ft.Control]:
+        return build_quiz_controls(
+            quiz,
+            selections=self._quiz_state(content_path),
+            submitted=content_path in self._quiz_submitted,
+            option_order=self._quiz_order(content_path),
+            on_select=lambda q, letter, p=content_path: self._select_quiz_answer(p, q, letter),
+            on_submit=lambda p=content_path: self._submit_quiz(p),
+            on_reset=lambda p=content_path: self._reset_quiz(p),
+        )
 
     def _render_content(self, module_id: str, content_path: str) -> None:
         module = self._find_module(module_id)
@@ -389,21 +473,59 @@ class CourseNavigator:
             )
             return
 
-        caption = path.name
-        if module:
-            caption = f"{module.title} · {path.name}"
+        items = self._module_content_items(module_id)
+        paths = [str(item.path) for item in items]
+        idx = paths.index(content_path) if content_path in paths else -1
+        has_prev = idx > 0
+        has_next = 0 <= idx < len(paths) - 1
 
-        self.body.controls.extend(
-            [
-                ft.Text(caption, color=ft.Colors.ON_SURFACE_VARIANT),
+        title = path.stem.replace("_", " ").title()
+        for item in items:
+            if str(item.path) == content_path:
+                title = item.title
+                break
+
+        if module:
+            self.body.controls.append(
+                ft.Text(
+                    f"Module {module.number:02d} · {module.title}",
+                    size=12,
+                    color=ft.Colors.ON_SURFACE_VARIANT,
+                )
+            )
+        self.body.controls.append(ft.Text(title, size=20, weight=ft.FontWeight.BOLD))
+
+        nav_row = ft.Row(
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            controls=[
                 ft.TextButton(
-                    "← Back to module",
+                    "← Previous",
+                    disabled=not has_prev,
+                    on_click=lambda _: self._navigate_content(-1),
+                ),
+                ft.TextButton(
+                    "Back to module",
                     on_click=lambda _: self._open_module(module_id),
                 ),
-                ft.Divider(),
-                _course_markdown(read_markdown(path)),
-            ]
+                ft.TextButton(
+                    "Next →",
+                    disabled=not has_next,
+                    on_click=lambda _: self._navigate_content(1),
+                ),
+            ],
         )
+        self.body.controls.append(nav_row)
+        self.body.controls.append(ft.Divider())
+
+        raw = read_markdown(path)
+        quiz = parse_quiz_markdown(raw) if self._is_quiz_path(path, items) else None
+        if quiz:
+            self.body.controls.extend(self._render_interactive_quiz(content_path, quiz))
+        else:
+            self.body.controls.append(_course_markdown(raw))
+
+        self.body.controls.append(ft.Divider())
+        self.body.controls.append(nav_row)
 
 
 def main(page: ft.Page) -> None:

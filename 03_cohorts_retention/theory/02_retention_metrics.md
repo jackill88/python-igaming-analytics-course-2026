@@ -1,29 +1,39 @@
 # Retention Metrics
 
-D1, D7, D30 and return definitions.
+Retention measures whether players **return after a reference day**.
 
-## Key concepts
+| Metric | Definition |
+|--------|------------|
+| **D1** | Active 1 day after registration (or cohort anchor) |
+| **D7** | Active 7 days after registration |
+| **D30** | Active 30 days after registration |
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
-
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```
+D7 retention = players active on day 7 / cohort size
 ```
 
-## Practice
+## Return vs survival
 
-Complete the module challenges and run pytest to verify your implementation.
+- **Return-based (common):** active exactly on day N (or within a window around N)
+- **Survival / rolling:** active at any point in days 1–N
+
+State which you use — they produce different numbers.
+
+## SQL sketch
+
+```sql
+SELECT
+    cohort_week,
+    COUNT(DISTINCT player_id) AS cohort_size,
+    COUNT(DISTINCT CASE WHEN days_since_reg = 7 THEN player_id END) AS d7_retained
+FROM player_cohort_activity
+GROUP BY cohort_week;
+```
+
+## iGaming benchmarks
+
+Benchmarks vary by market, product, and channel. Use **internal baselines** and **cohort-over-cohort trends** rather than generic industry numbers.
+
+## Key takeaway
+
+Retention is **cohort size in the denominator** and a **precise day/window definition** in the numerator.

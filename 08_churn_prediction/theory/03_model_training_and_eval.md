@@ -1,29 +1,38 @@
 # Model Training and Evaluation
 
-LightGBM, metrics, deployment.
+## Model choice
 
-## Key concepts
-
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
+**LightGBM** or **XGBoost** — handle mixed features, nonlinear patterns, fast training on tabular data.
 
 ```python
-import pandas as pd
+import lightgbm as lgb
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+model = lgb.LGBMClassifier(random_state=42)
+model.fit(X_train, y_train)
 ```
 
-## Practice
+## Validation strategy
 
-Complete the module challenges and run pytest to verify your implementation.
+- **Time-based split:** train on older snapshots, test on recent
+- Never random-split rows from the same player across train/test
+
+## Metrics
+
+| Metric | Use |
+|--------|-----|
+| AUC-ROC | Overall ranking quality |
+| Precision@K | Top-K list for CRM calls |
+| Recall@K | Coverage of actual churners |
+| Calibration | Expected vs actual churn rate in bucket |
+
+## Deployment workflow
+
+```
+RGS → warehouse → player_features_daily → nightly score → churn_scores table → CRM
+```
+
+Batch is sufficient for most win-back campaigns.
+
+## Key takeaway
+
+Optimize for **CRM capacity** (precision at top decile), not only AUC.

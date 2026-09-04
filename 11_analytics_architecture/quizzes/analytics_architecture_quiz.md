@@ -4,78 +4,78 @@
 
 ---
 
-**1.** With RGS-only data, which metric is directly computable?
+**1.** Phase 1 of the recommended analytics roadmap is:
 
-- A) NGR  
-- B) ARPU  
-- C) GGR  
-- D) Bonus cost  
+- A) Feature store evaluation  
+- B) Warehouse ingestion from RGS  
+- C) Real-time recommendation API  
+- D) Blockchain audit trail  
 
-**2.** GGR is defined as:
+**2.** dbt feature tables sit between:
 
-- A) Deposits minus withdrawals  
-- B) Bets minus wins  
-- C) Revenue minus taxes  
-- D) Wins minus bets  
+- A) CRM and email SMTP  
+- B) Raw warehouse tables and ML models  
+- C) Game servers and players  
+- D) Tax authority and regulator  
 
-**3.** DAU counts:
+**3.** Batch nightly ML scoring is sufficient for:
 
-- A) Total bets per day  
-- B) Unique active players per day  
-- C) New registrations per day  
-- D) Sessions per day  
+- A) In-session game recommendations at bet time  
+- B) Churn and segmentation CRM lists  
+- C) Sub-millisecond fraud on every click  
+- D) Live dealer video streaming  
 
-**4.** Stickiness is typically:
+**4.** A feature store (e.g. Feast) is justified when:
 
-- A) WAU / MAU  
-- B) DAU / MAU  
-- C) DAU / WAU  
-- D) MAU / DAU  
-
-**5.** D7 retention measures players who:
-
-- A) Deposit on day 7  
-- B) Return 7 days after registration  
-- C) Play 7 games  
-- D) Win on day 7  
-
-**6.** Churn is often defined as:
-
-- A) One losing session  
-- B) 30 days inactive  
-- C) Negative GGR  
-- D) Account closed  
-
-**7.** player_features_daily should use:
-
-- A) Future data for accuracy  
-- B) Point-in-time features only  
-- C) PAM wallet balances only  
-- D) Real-time Feast only  
-
-**8.** With RGS-only data, LTV models should predict:
-
-- A) True financial LTV  
-- B) future_ggr or turnover proxy  
-- C) Payment processor fees  
-- D) CRM email open rate  
-
-**9.** First ML use case to validate ROI is often:
-
-- A) Real-time feature store  
-- B) Churn or segmentation  
-- C) Blockchain ledger  
-- D) Data catalog only  
-
-**10.** A feature store is recommended when:
-
-- A) Day one of analytics  
+- A) Day one of analytics with one report  
 - B) Multiple models share features and online inference matters  
-- C) You have no warehouse  
-- D) Only batch reports needed  
+- C) No warehouse exists  
+- D) Only static PDFs are needed  
+
+**5.** Daily storage estimate uses:
+
+- A) events_per_day × bytes_per_event / 1e9 GB  
+- B) MAU × DAU  
+- C) GGR × tax rate  
+- D) Cluster count × k  
+
+**6.** Redis is often paired with batch ML when:
+
+- A) Low-latency serving of precomputed scores is needed  
+- B) Replacing the warehouse entirely  
+- C) Storing raw video  
+- D) Eliminating dbt  
+
+**7.** Training-serving skew happens when:
+
+- A) Training and production features are computed differently  
+- B) Models use the same SQL in both paths  
+- C) player_id is consistent  
+- D) Random seed is fixed  
+
+**8.** For RGS-only MVP, headcount often includes:
+
+- A) 10 dedicated data engineers day one  
+- B) 1 analytics engineer + fractional ML support  
+- C) No analytics roles  
+- D) Only frontend designers  
+
+**9.** Feasibility gate for Phase 2 ML might require:
+
+- A) Churn model beats random at precision@k  
+- B) Unlimited CRM budget proof  
+- C) PAM integration complete  
+- D) Feature store in production  
+
+**10.** The stakeholder ask to "validate roadmap and cost" means:
+
+- A) Build every tool immediately  
+- B) Prove business value before scaling infrastructure  
+- C) Skip metrics entirely  
+- D) Outsource all modeling  
 
 ---
 
 ## Answers
 
-1. C · 2. B · 3. B · 4. B · 5. B · 6. B · 7. B · 8. B · 9. B · 10. B
+1. B · 2. B · 3. B · 4. B · 5. A · 6. A · 7. A · 8. B · 9. A · 10. B

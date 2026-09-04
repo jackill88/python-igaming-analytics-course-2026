@@ -1,29 +1,30 @@
 # Feature Grain and Leakage
 
-Point-in-time correctness.
+**Leakage** = using information from the future to predict the past. It inflates offline metrics and fails in production.
 
-## Key concepts
+## Common leakage mistakes in iGaming
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
+| Mistake | Fix |
+|---------|-----|
+| Include same-day rounds when scoring at midnight | Cutoff timestamp policy |
+| Use lifetime GGR as a feature | Use GGR only before feature_date |
+| Label churn using activity before snapshot | Label uses activity *after* snapshot only |
+| Train/test split by random rows | Split by time or player cohort |
 
-## Example
+## Train / serve skew
 
-```python
-import pandas as pd
+Features computed in notebooks differently from dbt SQL → silent production bugs.
 
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
-```
+**Mitigation:** single source of truth in warehouse; notebooks read the feature table.
 
-## Practice
+## Feature_date semantics
 
-Complete the module challenges and run pytest to verify your implementation.
+Document:
+
+- Timezone of `feature_date`
+- Whether window ends at start-of-day or end-of-day
+- Handling of players with zero history (null vs 0)
+
+## Key takeaway
+
+For every feature, ask: **"Would I know this value at scoring time?"** If not, it's leakage.

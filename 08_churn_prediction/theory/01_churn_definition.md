@@ -1,29 +1,37 @@
 # Churn Definition
 
-30-day inactivity as target.
+In iGaming with RGS data, churn is typically **inactivity**, not account closure.
 
-## Key concepts
+## Standard definition
 
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
-
-```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+```
+Churned = no gameplay activity for 30 consecutive days
 ```
 
-## Practice
+## ML label
 
-Complete the module challenges and run pytest to verify your implementation.
+```
+inactive_next_30_days = 1 if no activity in (snapshot_date, snapshot_date + 30 days]
+```
+
+Players must be **active in the lookback window** before snapshot to be eligible (existing players, not brand-new).
+
+## Alternative definitions
+
+| Definition | When to use |
+|------------|-------------|
+| 14-day inactive | Fast-cycle mobile products |
+| 60-day inactive | Low-frequency lottery-style |
+| Deposit churn | Needs PAM — no deposit in 30d |
+
+## Class imbalance
+
+Churn datasets are often imbalanced (many non-churners). Use:
+
+- `scale_pos_weight` in LightGBM
+- Precision@K for top decile
+- Calibration for CRM capacity planning
+
+## Key takeaway
+
+Align churn definition with **CRM action window** — if campaigns react at 14 days idle, don't train on 30-day labels.

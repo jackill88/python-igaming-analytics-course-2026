@@ -1,29 +1,38 @@
 # Future GGR Prediction
 
-Regression targets from gameplay.
+Regression model: features at snapshot → sum of GGR in next N days.
 
-## Key concepts
-
-- iGaming analytics starts from **RGS gameplay events** when PAM data is unavailable
-- State **grain** (player, session, round) before aggregating
-- **GGR = bets − wins** is the primary revenue metric from RGS
-- Engagement (DAU/WAU/MAU), retention, and churn build on activity definitions
-- ML features belong in warehouse tables like `player_features_daily`
-- Validate business value before investing in real-time ML infrastructure
-
-## Example
+## Label
 
 ```python
-import pandas as pd
-
-events = pd.DataFrame({
-    "bet_amount": [10.0, 5.0, 20.0],
-    "win_amount": [0.0, 15.0, 0.0],
-})
-events["ggr"] = events["bet_amount"] - events["win_amount"]
-print(events["ggr"].sum())  # GGR = 20.0
+future_ggr_30d = sum(bet_amount - win_amount) for rounds in (snapshot, snapshot + 30d]
 ```
 
-## Practice
+## Features
 
-Complete the module challenges and run pytest to verify your implementation.
+Same as churn: `ggr_30d`, `sessions_30d`, `avg_bet_30d`, tenure, favorite game.
+
+## Model
+
+```python
+import lightgbm as lgb
+
+model = lgb.LGBMRegressor(random_state=42)
+model.fit(X_train, y_train)
+```
+
+## Evaluation
+
+- MAE / RMSE on holdout
+- Spearman correlation (ranking quality)
+- Decile lift: top decile actual GGR vs bottom
+
+## Use cases
+
+- Prioritize VIP outreach
+- Budget allocation by expected value
+- Early whale detection
+
+## Key takeaway
+
+LTV proxy models are **ranking tools** — validate that top decile players actually generate more GGR.
