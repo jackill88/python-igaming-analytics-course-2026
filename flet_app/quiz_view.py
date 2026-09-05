@@ -227,7 +227,7 @@ def _question_card(
                 value=selected,
                 content=ft.Column(spacing=4, controls=option_controls),
                 on_change=lambda e, n=question.number: on_select(
-                    n, e.control.value or ""
+                    n, (e.data or e.control.value or "")
                 ),
             )
         ]

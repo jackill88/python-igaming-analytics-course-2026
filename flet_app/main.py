@@ -11,7 +11,6 @@ FLET_APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = FLET_APP_DIR.parent
 if str(FLET_APP_DIR) not in sys.path:
     sys.path.insert(0, str(FLET_APP_DIR))
-# Prefer repo course_nav during dev; APK uses flet_app/course_nav from prepare_assets.
 if (REPO_ROOT / "course_nav" / "quiz_parser.py").is_file():
     sys.path.insert(0, str(REPO_ROOT))
 elif str(REPO_ROOT) not in sys.path:
@@ -85,8 +84,14 @@ class CourseNavigator:
         self._quiz_option_order: dict[str, dict[int, list[str]]] = {}
 
         self.body = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)
+        self.content_container = ft.Container(
+            content=self.body,
+            expand=True,
+            padding=ft.Padding.symmetric(horizontal=16, vertical=12),
+        )
         self.progress_text = ft.Text("")
         self.progress_bar = ft.ProgressBar(value=0, bar_height=6, color=_ACCENT)
+        self.appbar_title = ft.Text("Course Navigator")
 
     def start(self) -> None:
         self.page.title = "iGaming Analytics Course"
@@ -96,25 +101,20 @@ class CourseNavigator:
         self.page.appbar = ft.AppBar(
             leading=ft.IconButton(
                 icon=ft.Icons.MENU,
+                tooltip="Menu",
                 on_click=self._open_drawer,
             ),
-            title=ft.Text("Course Navigator"),
+            title=self.appbar_title,
             bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
         )
         self.page.drawer = self._build_drawer()
         self.page.add(
-            ft.Column(
+            ft.SafeArea(
                 expand=True,
-                controls=[
-                    ft.Container(
-                        content=self.body,
-                        expand=True,
-                        padding=16,
-                    ),
-                ],
+                content=self.content_container,
             )
         )
-        self._render()
+        self._do_render()
 
     def _find_module(self, module_id: str):
         for module in self.modules:
@@ -137,21 +137,21 @@ class CourseNavigator:
         self.page_name = "home"
         self.selected_module = None
         self.content_path = None
-        self._render()
+        self._schedule_render()
 
     def _open_module(self, module_id: str) -> None:
         self.page_name = "module"
         self.selected_module = module_id
         self.content_path = None
         touch_module(module_id)
-        self._render()
+        self._schedule_render()
 
     def _open_content(self, module_id: str, content_path: str) -> None:
         self.page_name = "content"
         self.selected_module = module_id
         self.content_path = content_path
         touch_module(module_id)
-        self._render()
+        self._schedule_render()
 
     def _navigate_content(self, offset: int) -> None:
         if not self.selected_module or not self.content_path:
@@ -168,11 +168,17 @@ class CourseNavigator:
 
     def _mark_in_progress(self, module_id: str) -> None:
         set_module_status(module_id, ModuleStatus.IN_PROGRESS)
-        self._render()
+        self._schedule_render()
 
     def _mark_completed(self, module_id: str) -> None:
         set_module_status(module_id, ModuleStatus.COMPLETED)
-        self._render()
+        self._schedule_render()
+
+    def _on_back(self, _=None) -> None:
+        if self.page_name == "content" and self.selected_module:
+            self._open_module(self.selected_module)
+        elif self.page_name == "module":
+            self._go_home()
 
     def _reset_module(self, module_id: str) -> None:
         set_module_status(module_id, ModuleStatus.NOT_STARTED)
@@ -180,13 +186,38 @@ class CourseNavigator:
 
     def _schedule_render(self) -> None:
         async def _render_async() -> None:
-            self._render()
+            self._do_render()
 
         self.page.run_task(_render_async)
 
-    def _render(self) -> None:
+    def _update_appbar(self) -> None:
+        if self.page_name == "home":
+            self.page.appbar.leading = ft.IconButton(
+                icon=ft.Icons.MENU,
+                tooltip="Menu",
+                on_click=self._open_drawer,
+            )
+            self.appbar_title.value = "Course Navigator"
+        else:
+            self.page.appbar.leading = ft.IconButton(
+                icon=ft.Icons.ARROW_BACK,
+                tooltip="Back",
+                on_click=self._on_back,
+            )
+            if self.page_name == "module" and self.selected_module:
+                module = self._find_module(self.selected_module)
+                self.appbar_title.value = module.title if module else "Module"
+            elif self.page_name == "content" and self.content_path:
+                self.appbar_title.value = Path(self.content_path).stem.replace("_", " ").title()
+            else:
+                self.appbar_title.value = "Course Navigator"
+
+    def _do_render(self) -> None:
         self._update_drawer_progress()
-        self.body.controls.clear()
+        self._update_appbar()
+
+        new_body = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO, spacing=12)
+        self.body = new_body
 
         if self.page_name == "home":
             self._render_home()
@@ -201,6 +232,8 @@ class CourseNavigator:
         else:
             self._render_home()
 
+        self.content_container.content = new_body
+        self.content_container.update()
         self.page.update()
 
     def _update_drawer_progress(self) -> None:
@@ -210,6 +243,8 @@ class CourseNavigator:
         self.progress_text.value = f"{completed} of {total} modules completed"
 
     async def _open_drawer(self, _=None) -> None:
+        self._update_drawer_progress()
+        self.page.drawer = self._build_drawer()
         await self.page.show_drawer()
 
     def _drawer_action(self, action):
@@ -252,7 +287,9 @@ class CourseNavigator:
             destinations.append(
                 ft.ListTile(
                     title=ft.Text(f"{icon} {module.number:02d}. {module.title}"),
-                    on_click=self._drawer_action(lambda mid=module_id: self._open_module(mid)),
+                    on_click=self._drawer_action(
+                        lambda mid=module_id: self._open_module(mid)
+                    ),
                 )
             )
 
@@ -261,7 +298,6 @@ class CourseNavigator:
     async def _drawer_navigate(self, action) -> None:
         await self.page.close_drawer()
         action()
-        self.page.drawer = self._build_drawer()
 
     def _metric_card(self, label: str, value: str | int) -> ft.Container:
         return ft.Container(
@@ -276,6 +312,23 @@ class CourseNavigator:
                     ft.Text(label, size=12, color=ft.Colors.ON_SURFACE_VARIANT),
                 ],
             ),
+        )
+
+    def _lesson_tile(
+        self,
+        *,
+        module_id: str,
+        item: ContentItem,
+        icon: str,
+        subtitle: str | None = None,
+    ) -> ft.ListTile:
+        path = str(item.path)
+        return ft.ListTile(
+            leading=ft.Icon(icon),
+            title=ft.Text(item.title, size=14),
+            subtitle=ft.Text(subtitle, size=12) if subtitle else None,
+            trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT, size=18),
+            on_click=lambda _, p=path: self._open_content(module_id, p),
         )
 
     def _render_home(self) -> None:
@@ -306,7 +359,7 @@ class CourseNavigator:
             self.body.controls.append(
                 ft.ExpansionTile(
                     title=ft.Text("About this course"),
-                    expanded=True,
+                    expanded=False,
                     controls=[
                         ft.Container(
                             padding=ft.Padding.only(left=8, right=8, bottom=12),
@@ -330,11 +383,8 @@ class CourseNavigator:
                         leading=ft.Text(f"{module.number:02d}", weight=ft.FontWeight.BOLD),
                         title=ft.Text(f"{icon} {module.title}"),
                         subtitle=ft.Text(STATUS_LABELS[prog.status]),
-                        trailing=ft.IconButton(
-                            icon=ft.Icons.OPEN_IN_NEW,
-                            tooltip="Open",
-                            on_click=lambda _, mid=module_id: self._open_module(mid),
-                        ),
+                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+                        on_click=lambda _, mid=module_id: self._open_module(mid),
                     )
                 )
             )
@@ -371,7 +421,9 @@ class CourseNavigator:
                         ft.Button(
                             "Mark completed",
                             expand=True,
-                            style=ft.ButtonStyle(bgcolor=ft.Colors.PRIMARY, color=ft.Colors.ON_PRIMARY),
+                            style=ft.ButtonStyle(
+                                bgcolor=ft.Colors.PRIMARY, color=ft.Colors.ON_PRIMARY
+                            ),
                             on_click=lambda _: self._mark_completed(module_id),
                         ),
                         ft.OutlinedButton(
@@ -387,12 +439,10 @@ class CourseNavigator:
 
         if module.readme:
             self.body.controls.append(
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.MENU_BOOK),
-                    title=ft.Text("Module overview (README)"),
-                    on_click=lambda _: self._open_content(
-                        module_id, str(module.readme.path)
-                    ),
+                self._lesson_tile(
+                    module_id=module_id,
+                    item=module.readme,
+                    icon=ft.Icons.MENU_BOOK,
                 )
             )
 
@@ -401,12 +451,11 @@ class CourseNavigator:
                 ft.Text("Theory", size=16, weight=ft.FontWeight.W_600)
             )
             for item in module.theory:
-                path = str(item.path)
                 self.body.controls.append(
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.ARTICLE),
-                        title=ft.Text(item.title),
-                        on_click=lambda _, p=path: self._open_content(module_id, p),
+                    self._lesson_tile(
+                        module_id=module_id,
+                        item=item,
+                        icon=ft.Icons.ARTICLE,
                     )
                 )
 
@@ -415,15 +464,41 @@ class CourseNavigator:
                 ft.Text("Quizzes", size=16, weight=ft.FontWeight.W_600)
             )
             for item in module.quizzes:
-                path = str(item.path)
                 self.body.controls.append(
-                    ft.ListTile(
-                        leading=ft.Icon(ft.Icons.QUIZ),
-                        title=ft.Text(item.title),
-                        subtitle=ft.Text("Interactive · tap to answer"),
-                        on_click=lambda _, p=path: self._open_content(module_id, p),
+                    self._lesson_tile(
+                        module_id=module_id,
+                        item=item,
+                        icon=ft.Icons.QUIZ,
+                        subtitle="Interactive · tap to answer",
                     )
                 )
+
+    def _build_content_nav_row(
+        self,
+        module_id: str,
+        *,
+        has_prev: bool,
+        has_next: bool,
+    ) -> ft.Row:
+        return ft.Row(
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            controls=[
+                ft.TextButton(
+                    "← Previous",
+                    disabled=not has_prev,
+                    on_click=lambda _: self._navigate_content(-1),
+                ),
+                ft.TextButton(
+                    "Back to module",
+                    on_click=lambda _: self._open_module(module_id),
+                ),
+                ft.TextButton(
+                    "Next →",
+                    disabled=not has_next,
+                    on_click=lambda _: self._navigate_content(1),
+                ),
+            ],
+        )
 
     def _is_quiz_path(self, path: Path, items: list[ContentItem]) -> bool:
         for item in items:
@@ -495,26 +570,9 @@ class CourseNavigator:
             )
         self.body.controls.append(ft.Text(title, size=20, weight=ft.FontWeight.BOLD))
 
-        nav_row = ft.Row(
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-            controls=[
-                ft.TextButton(
-                    "← Previous",
-                    disabled=not has_prev,
-                    on_click=lambda _: self._navigate_content(-1),
-                ),
-                ft.TextButton(
-                    "Back to module",
-                    on_click=lambda _: self._open_module(module_id),
-                ),
-                ft.TextButton(
-                    "Next →",
-                    disabled=not has_next,
-                    on_click=lambda _: self._navigate_content(1),
-                ),
-            ],
+        self.body.controls.append(
+            self._build_content_nav_row(module_id, has_prev=has_prev, has_next=has_next)
         )
-        self.body.controls.append(nav_row)
         self.body.controls.append(ft.Divider())
 
         raw = read_markdown(path)
@@ -525,7 +583,9 @@ class CourseNavigator:
             self.body.controls.append(_course_markdown(raw))
 
         self.body.controls.append(ft.Divider())
-        self.body.controls.append(nav_row)
+        self.body.controls.append(
+            self._build_content_nav_row(module_id, has_prev=has_prev, has_next=has_next)
+        )
 
 
 def main(page: ft.Page) -> None:

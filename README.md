@@ -103,6 +103,7 @@ flet run flet_app/main.py
 # Build APK — run from repo root (requires pyproject.toml)
 python flet_app/prepare_assets.py
 export PATH="$HOME/flutter/3.44.8/bin:$PATH"   # adjust to your Flutter install
+cd flet_app
 flet build apk
 ```
 
