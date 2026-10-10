@@ -346,3 +346,250 @@ def next_phase(completed):
         if phase not in completed:
             return phase
     return None
+
+
+def classify_metric_source(metric: str) -> str:
+    sources = {
+        "login_dau": "service-customers",
+        "kyc_status": "service-customers",
+        "deposits": "service-wallet",
+        "bonus_claims": "service-wallet",
+        "game_rounds": "service-casino",
+        "free_spins": "service-casino",
+        "bonus_definitions": "service-offerings",
+        "messages_sent": "service-communications",
+        "daily_gaming_activity": "service-bo-reports",
+    }
+    return sources.get(metric, "unknown")
+
+
+def is_historical_ggr_source(table_name: str) -> bool:
+    return table_name in {"game_rounds", "transactions"}
+
+
+def to_eur(amount: float, currency: str, rates: pd.DataFrame) -> float:
+    match = rates.loc[rates["currency"] == currency, "eur_per_unit"]
+    if match.empty:
+        raise KeyError(currency)
+    return float(amount) * float(match.iloc[0])
+
+
+def activity_counts(logins, rounds, transactions, as_of):
+    day = pd.Timestamp(as_of).normalize()
+    login_days = pd.to_datetime(logins["login_at"]).dt.normalize()
+    play_days = pd.to_datetime(rounds["event_ts"]).dt.normalize()
+    created = pd.to_datetime(transactions["created_at"]).dt.normalize()
+    deposits = transactions[
+        (transactions["tx_type"] == "deposit")
+        & (transactions["status"] == "approved")
+        & (created == day)
+    ]
+    return {
+        "login": int(logins.loc[login_days == day, "cid"].nunique()),
+        "play": int(rounds.loc[play_days == day, "cid"].nunique()),
+        "deposit": int(deposits["cid"].nunique()),
+    }
+
+
+def anchor_retention(customers, rounds, transactions, anchor, offset_days):
+    if anchor == "registration":
+        anchors = customers[["cid"]].copy()
+        anchors["anchor_date"] = pd.to_datetime(customers["registered_at"]).dt.normalize().to_numpy()
+    elif anchor == "ftd":
+        approved = transactions[
+            (transactions["tx_type"] == "deposit") & (transactions["status"] == "approved")
+        ].copy()
+        if approved.empty:
+            return 0.0
+        approved["created_day"] = pd.to_datetime(approved["created_at"]).dt.normalize()
+        anchors = approved.groupby("cid", as_index=False)["created_day"].min()
+        anchors = anchors.rename(columns={"created_day": "anchor_date"})
+    else:
+        raise ValueError(anchor)
+    if anchors.empty:
+        return 0.0
+    play = rounds[["cid", "event_ts"]].copy()
+    play["play_day"] = pd.to_datetime(play["event_ts"]).dt.normalize()
+    anchors = anchors.copy()
+    anchors["target"] = anchors["anchor_date"] + pd.to_timedelta(offset_days, unit="D")
+    merged = anchors.merge(play, on="cid", how="left")
+    retained = merged.loc[merged["play_day"] == merged["target"], "cid"].nunique()
+    return float(retained) / float(anchors["cid"].nunique())
+
+
+def crm_eligible_players(customers):
+    mask = (customers["status"] == "active") & (customers["marketing_email_allowed"] == 1)
+    return customers.loc[mask, ["cid"]].sort_values("cid").reset_index(drop=True)
+
+
+def first_deposit(transactions):
+    columns = ["cid", "first_deposit_at", "amount_eur"]
+    approved = transactions[
+        (transactions["tx_type"] == "deposit") & (transactions["status"] == "approved")
+    ].copy()
+    if approved.empty:
+        return pd.DataFrame(columns=columns)
+    approved = approved.sort_values(["cid", "created_at", "transaction_id"])
+    first = approved.drop_duplicates("cid", keep="first")
+    out = first[["cid", "created_at", "amount_eur"]].rename(columns={"created_at": "first_deposit_at"})
+    return out.sort_values("cid").reset_index(drop=True)
+
+
+def paying_user_count(transactions) -> int:
+    approved = transactions[
+        (transactions["tx_type"] == "deposit") & (transactions["status"] == "approved")
+    ]
+    return int(approved["cid"].nunique())
+
+
+def arpu_arppu(revenue, active_cids, transactions):
+    total = float(revenue["revenue_eur"].sum()) if len(revenue) else 0.0
+    active = len(set(active_cids))
+    paying = int(
+        transactions.loc[
+            (transactions["tx_type"] == "deposit") & (transactions["status"] == "approved"),
+            "cid",
+        ].nunique()
+    ) if len(transactions) else 0
+    arpu = total / active if active else 0.0
+    arppu = total / paying if paying else 0.0
+    return arpu, arppu
+
+
+def bonus_cost_per_player(claims):
+    columns = ["cid", "bonus_cost_eur"]
+    if claims.empty:
+        return pd.DataFrame(columns=columns)
+    out = claims.groupby("cid", as_index=False)["bonus_cost_eur"].sum()
+    return out.sort_values("cid").reset_index(drop=True)
+
+
+def compute_ngr(rounds, claims, provider_fee_rate, tax_rate):
+    columns = ["cid", "ggr_eur", "bonus_cost_eur", "provider_fee_eur", "tax_eur", "ngr_eur"]
+    if rounds.empty:
+        ggr = pd.DataFrame(columns=["cid", "ggr_eur", "stake_eur"])
+    else:
+        tmp = rounds.copy()
+        tmp["stake_eur"] = tmp["cash_bet_eur"] + tmp["bonus_bet_eur"]
+        tmp["ggr_eur"] = tmp["stake_eur"] - tmp["win_amount_eur"]
+        ggr = tmp.groupby("cid", as_index=False).agg(
+            ggr_eur=("ggr_eur", "sum"),
+            stake_eur=("stake_eur", "sum"),
+        )
+    if claims.empty:
+        costs = pd.DataFrame(columns=["cid", "bonus_cost_eur"])
+    else:
+        costs = claims.groupby("cid", as_index=False)["bonus_cost_eur"].sum()
+    merged = ggr.merge(costs, on="cid", how="outer")
+    if merged.empty:
+        return pd.DataFrame(columns=columns)
+    for col in ("ggr_eur", "stake_eur", "bonus_cost_eur"):
+        merged[col] = pd.to_numeric(merged[col], errors="coerce").fillna(0.0)
+    merged["provider_fee_eur"] = merged["stake_eur"] * provider_fee_rate
+    merged["tax_eur"] = merged["ggr_eur"] * tax_rate
+    merged["ngr_eur"] = (
+        merged["ggr_eur"]
+        - merged["bonus_cost_eur"]
+        - merged["provider_fee_eur"]
+        - merged["tax_eur"]
+    )
+    return merged[columns].sort_values("cid").reset_index(drop=True)
+
+
+def bonus_ggr_share(rounds):
+    columns = ["cid", "ggr_eur", "bonus_ggr_eur", "bonus_ggr_share"]
+    if rounds.empty:
+        return pd.DataFrame(columns=columns)
+    tmp = rounds.copy()
+    tmp["stake_eur"] = tmp["cash_bet_eur"] + tmp["bonus_bet_eur"]
+    tmp["ggr_eur"] = tmp["stake_eur"] - tmp["win_amount_eur"]
+    agg = tmp.groupby("cid", as_index=False).agg(
+        ggr_eur=("ggr_eur", "sum"),
+        stake_eur=("stake_eur", "sum"),
+        bonus_stake_eur=("bonus_bet_eur", "sum"),
+    )
+    agg["bonus_ggr_share"] = 0.0
+    positive = agg["stake_eur"] > 0
+    agg.loc[positive, "bonus_ggr_share"] = (
+        agg.loc[positive, "bonus_stake_eur"] / agg.loc[positive, "stake_eur"]
+    )
+    agg["bonus_ggr_eur"] = agg["ggr_eur"] * agg["bonus_ggr_share"]
+    return agg[columns].sort_values("cid").reset_index(drop=True)
+
+
+def pam_player_features(customers, transactions, rounds, feature_date):
+    feature_day = pd.Timestamp(feature_date).normalize()
+    start = feature_day - pd.Timedelta(days=29)
+    approved = transactions[
+        (transactions["tx_type"] == "deposit") & (transactions["status"] == "approved")
+    ].copy()
+    approved["day"] = pd.to_datetime(approved["created_at"]).dt.normalize()
+    played = rounds.copy()
+    played["day"] = pd.to_datetime(played["event_ts"]).dt.normalize()
+    hist = played.loc[played["day"] <= feature_day]
+    shares = (
+        bonus_ggr_share(hist).set_index("cid")["bonus_ggr_share"]
+        if len(hist)
+        else pd.Series(dtype=float)
+    )
+    rows = []
+    for cid in customers["cid"]:
+        cust = customers.loc[customers["cid"] == cid].iloc[0]
+        deps = approved.loc[approved["cid"] == cid]
+        deps_asof = deps.loc[deps["day"] <= feature_day]
+        if deps_asof.empty:
+            days_since = pd.NA
+        else:
+            days_since = int((feature_day - deps_asof["day"].min()).days)
+        deposits_30d = int(((deps["day"] >= start) & (deps["day"] <= feature_day)).sum())
+        share = float(shares.loc[cid]) if cid in shares.index else 0.0
+        eligible = int(cust["status"] == "active" and int(cust["marketing_email_allowed"]) == 1)
+        rows.append(
+            {
+                "cid": cid,
+                "days_since_ftd": days_since,
+                "deposits_30d": deposits_30d,
+                "bonus_ggr_share": share,
+                "crm_eligible": eligible,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def label_deposit_churn(transactions, snapshot_date, horizon_days=30):
+    columns = ["cid", "no_deposit_next_30_days"]
+    snapshot = pd.Timestamp(snapshot_date).normalize()
+    start = snapshot - pd.Timedelta(days=29)
+    end = snapshot + pd.Timedelta(days=horizon_days)
+    approved = transactions[
+        (transactions["tx_type"] == "deposit") & (transactions["status"] == "approved")
+    ].copy()
+    if approved.empty:
+        return pd.DataFrame(columns=columns)
+    approved["day"] = pd.to_datetime(approved["created_at"]).dt.normalize()
+    recent = approved[(approved["day"] >= start) & (approved["day"] <= snapshot)]
+    future_ids = set(
+        approved.loc[(approved["day"] > snapshot) & (approved["day"] <= end), "cid"]
+    )
+    rows = [
+        {"cid": cid, "no_deposit_next_30_days": int(cid not in future_ids)}
+        for cid in sorted(recent["cid"].unique())
+    ]
+    return pd.DataFrame(rows, columns=columns)
+
+
+def warehouse_source(metric: str):
+    if metric == "realtime_balance_push":
+        return None
+    sources = {
+        "player_identity": "customers",
+        "login_activity": "login_sessions",
+        "historical_ggr": "game_rounds",
+        "deposits": "transactions",
+        "bonus_cost": "bonuses_claimed",
+        "bonus_catalogue": "bonuses",
+        "reconciliation_check": "bo_reports",
+    }
+    if metric not in sources:
+        raise KeyError(metric)
+    return sources[metric]

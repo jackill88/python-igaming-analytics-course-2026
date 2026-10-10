@@ -432,3 +432,16 @@ Strong position:
 For initial RGS-based use cases, a large ML platform is probably unnecessary. We can derive player features directly in the warehouse, validate business value through segmentation and churn models, and only introduce real-time infrastructure or a feature store once recommendation and next-best-action use cases demonstrate measurable ROI.
 
 This aligns with the stakeholder request to validate feasibility and infrastructure costs rather than simply building technology.
+
+Chapter 2 — PAM is the system of record
+
+Modules 01–12 stay the RGS-only course. Chapter 2 (`part_02_pam`) assumes that path and uses Diger PAM as built:
+
+- service-customers: cid, brand, registration, KYC, login sessions, self-exclusion
+- service-wallet: transactions, mutable balance plus audit log, bonus claims, FTD; customer currency mirrored in EUR
+- service-casino: game sessions and rounds, free spins, wagering counter. Diger RGS is one provider adapter (Pragmatic, Ezugi, O2A are others). Bet/win money is in the wallet
+- service-offerings: bonus definitions (first_deposit, no_deposit, retention_bonus, free spins), not the claimed balance
+- service-communications: sends and the marketing gate (self-exclusion, advertising permission, marketing_email_allowed)
+- service-bo-reports: daily gaming, payment, bonus, and tax aggregates for the backoffice — reconcile the warehouse against them; do not treat them as the feature store
+
+Historical GGR and NGR come from rounds and transactions, not from customer_balance. Redis pub/sub is at-most-once and is not a warehouse feed. NGR in the course is GGR − bonus cost − provider fee − tax, in EUR. Activity churn stays; deposit churn is a second label. CRM outputs go to a predictions table (Solitics is the existing CRM sink) and exclude players who fail the marketing gate. Batch scoring remains the default.

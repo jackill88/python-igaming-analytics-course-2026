@@ -10,6 +10,7 @@ FLET_APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = FLET_APP_DIR.parent
 BUNDLED_COURSE = FLET_APP_DIR / "assets" / "course"
 MODULE_PATTERN = re.compile(r"^(\d{2})_.+")
+PART_PATTERN = re.compile(r"^part_(\d{2})_.+")
 
 
 def get_app_data_dir() -> Path:
@@ -23,10 +24,16 @@ def get_app_data_dir() -> Path:
 def _has_course_modules(root: Path) -> bool:
     if not root.is_dir():
         return False
-    return any(
-        p.is_dir() and MODULE_PATTERN.match(p.name)
-        for p in root.iterdir()
-    )
+    for path in root.iterdir():
+        if not path.is_dir():
+            continue
+        if MODULE_PATTERN.match(path.name):
+            return True
+        if PART_PATTERN.match(path.name) and any(
+            child.is_dir() and MODULE_PATTERN.match(child.name) for child in path.iterdir()
+        ):
+            return True
+    return False
 
 
 def get_course_root() -> Path:

@@ -16,7 +16,7 @@ if (REPO_ROOT / "course_nav" / "quiz_parser.py").is_file():
 elif str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from course_nav.course_loader import ContentItem, discover_modules, read_markdown
+from course_nav.course_loader import ContentItem, discover_modules, group_modules, read_markdown
 from course_nav.quiz_parser import parse_quiz_markdown
 from course_nav.database import (
     ModuleStatus,
@@ -273,25 +273,28 @@ class CourseNavigator:
                 on_click=self._drawer_action(self._go_home),
             ),
             ft.Divider(height=1),
-            ft.Container(
-                padding=ft.Padding.only(left=16, top=8, bottom=4),
-                content=ft.Text("Modules", weight=ft.FontWeight.W_600),
-            ),
         ]
 
-        for module in self.modules:
-            prog = progress_map[module.module_id]
-            icon = STATUS_ICONS[prog.status]
-            module_id = module.module_id
-
+        for part_title, part_modules in group_modules(self.modules):
             destinations.append(
-                ft.ListTile(
-                    title=ft.Text(f"{icon} {module.number:02d}. {module.title}"),
-                    on_click=self._drawer_action(
-                        lambda mid=module_id: self._open_module(mid)
-                    ),
+                ft.Container(
+                    padding=ft.Padding.only(left=16, top=12, bottom=4),
+                    content=ft.Text(part_title, weight=ft.FontWeight.W_600),
                 )
             )
+            for module in part_modules:
+                prog = progress_map[module.module_id]
+                icon = STATUS_ICONS[prog.status]
+                module_id = module.module_id
+
+                destinations.append(
+                    ft.ListTile(
+                        title=ft.Text(f"{icon} {module.number:02d}. {module.title}"),
+                        on_click=self._drawer_action(
+                            lambda mid=module_id: self._open_module(mid)
+                        ),
+                    )
+                )
 
         return ft.NavigationDrawer(controls=destinations)
 
@@ -341,7 +344,7 @@ class CourseNavigator:
             [
                 ft.Text("iGaming Analytics Course", size=22, weight=ft.FontWeight.BOLD),
                 ft.Text(
-                    "RGS data · metrics · ML · offline theory & quizzes",
+                    "Chapter 1 RGS · Chapter 2 PAM · offline theory & quizzes",
                     color=ft.Colors.ON_SURFACE_VARIANT,
                 ),
                 ft.Row(
@@ -373,21 +376,39 @@ class CourseNavigator:
             ft.Text("Your learning path", size=18, weight=ft.FontWeight.W_600)
         )
 
-        for module in modules:
-            prog = progress_map[module.module_id]
-            icon = STATUS_ICONS[prog.status]
-            module_id = module.module_id
+        for part_title, part_modules in group_modules(modules):
             self.body.controls.append(
-                ft.Card(
-                    content=ft.ListTile(
-                        leading=ft.Text(f"{module.number:02d}", weight=ft.FontWeight.BOLD),
-                        title=ft.Text(f"{icon} {module.title}"),
-                        subtitle=ft.Text(STATUS_LABELS[prog.status]),
-                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
-                        on_click=lambda _, mid=module_id: self._open_module(mid),
+                ft.Text(part_title, size=16, weight=ft.FontWeight.W_600)
+            )
+            part_readme = part_modules[0].part_readme
+            if part_readme is not None and part_readme.is_file():
+                self.body.controls.append(
+                    ft.ExpansionTile(
+                        title=ft.Text("Chapter overview"),
+                        expanded=False,
+                        controls=[
+                            ft.Container(
+                                padding=ft.Padding.only(left=8, right=8, bottom=12),
+                                content=_course_markdown(read_markdown(part_readme)),
+                            )
+                        ],
                     )
                 )
-            )
+            for module in part_modules:
+                prog = progress_map[module.module_id]
+                icon = STATUS_ICONS[prog.status]
+                module_id = module.module_id
+                self.body.controls.append(
+                    ft.Card(
+                        content=ft.ListTile(
+                            leading=ft.Text(f"{module.number:02d}", weight=ft.FontWeight.BOLD),
+                            title=ft.Text(f"{icon} {module.title}"),
+                            subtitle=ft.Text(STATUS_LABELS[prog.status]),
+                            trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
+                            on_click=lambda _, mid=module_id: self._open_module(mid),
+                        )
+                    )
+                )
 
     def _render_module(self, module_id: str) -> None:
         module = self._find_module(module_id)
@@ -401,7 +422,7 @@ class CourseNavigator:
             [
                 ft.Text(module.title, size=22, weight=ft.FontWeight.BOLD),
                 ft.Text(
-                    f"Module {module.number:02d} · {module.module_id}",
+                    f"{module.part_title} · Module {module.number:02d} · {module.module_id}",
                     color=ft.Colors.ON_SURFACE_VARIANT,
                 ),
                 ft.Row(

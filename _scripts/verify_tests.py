@@ -47,6 +47,24 @@ CHALLENGE_MAP = {
     ("10_recommendations", "recommend_popular_games.py"): ["recommend_popular_unplayed"],
     ("11_analytics_architecture", "estimate_storage.py"): ["estimate_daily_storage_gb"],
     ("11_analytics_architecture", "pipeline_phase_order.py"): ["next_phase"],
+    ("part_02_pam/01_what_changes", "classify_metric_source.py"): ["classify_metric_source"],
+    ("part_02_pam/01_what_changes", "historical_ggr_source.py"): ["is_historical_ggr_source"],
+    ("part_02_pam/01_what_changes", "convert_to_eur.py"): ["to_eur"],
+    ("part_02_pam/02_activity_and_cohorts", "activity_counts.py"): ["activity_counts"],
+    ("part_02_pam/02_activity_and_cohorts", "anchor_retention.py"): ["anchor_retention"],
+    ("part_02_pam/02_activity_and_cohorts", "crm_eligible_players.py"): ["crm_eligible_players"],
+    ("part_02_pam/03_wallet_revenue", "first_deposit.py"): ["first_deposit"],
+    ("part_02_pam/03_wallet_revenue", "paying_users.py"): ["paying_user_count"],
+    ("part_02_pam/03_wallet_revenue", "arpu_arppu.py"): ["arpu_arppu"],
+    ("part_02_pam/04_bonus_and_ngr", "bonus_cost.py"): ["bonus_cost_per_player"],
+    ("part_02_pam/04_bonus_and_ngr", "compute_ngr.py"): ["compute_ngr"],
+    ("part_02_pam/04_bonus_and_ngr", "bonus_ggr_share.py"): ["bonus_ggr_share"],
+    ("part_02_pam/05_models_and_pipeline", "pam_player_features.py"): [
+        "bonus_ggr_share",
+        "pam_player_features",
+    ],
+    ("part_02_pam/05_models_and_pipeline", "label_deposit_churn.py"): ["label_deposit_churn"],
+    ("part_02_pam/05_models_and_pipeline", "warehouse_source.py"): ["warehouse_source"],
 }
 
 

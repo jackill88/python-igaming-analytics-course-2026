@@ -12,6 +12,7 @@ COURSE_NAV_SRC = REPO_ROOT / "course_nav"
 COURSE_NAV_DEST = FLET_APP_DIR / "course_nav"
 ASSETS_COURSE = FLET_APP_DIR / "assets" / "course"
 MODULE_PATTERN = re.compile(r"^(\d{2})_.+$")
+PART_PATTERN = re.compile(r"^part_(\d{2})_.+$")
 
 
 def _copy_markdown(src: Path, dst: Path) -> None:
@@ -24,6 +25,22 @@ def _sync_course_nav() -> None:
     if COURSE_NAV_DEST.exists():
         shutil.rmtree(COURSE_NAV_DEST)
     shutil.copytree(COURSE_NAV_SRC, COURSE_NAV_DEST)
+
+
+def _copy_module_markdown(module_dir: Path, dest_module: Path) -> None:
+    readme = module_dir / "README.md"
+    if readme.is_file():
+        _copy_markdown(readme, dest_module / "README.md")
+
+    theory_dir = module_dir / "theory"
+    if theory_dir.is_dir():
+        for path in sorted(theory_dir.glob("*.md")):
+            _copy_markdown(path, dest_module / "theory" / path.name)
+
+    quizzes_dir = module_dir / "quizzes"
+    if quizzes_dir.is_dir():
+        for path in sorted(quizzes_dir.glob("*.md")):
+            _copy_markdown(path, dest_module / "quizzes" / path.name)
 
 
 def prepare_assets() -> None:
@@ -40,23 +57,20 @@ def prepare_assets() -> None:
     for module_dir in sorted(REPO_ROOT.iterdir()):
         if not module_dir.is_dir() or not MODULE_PATTERN.match(module_dir.name):
             continue
-
         rel = module_dir.relative_to(REPO_ROOT)
-        dest_module = ASSETS_COURSE / rel
+        _copy_module_markdown(module_dir, ASSETS_COURSE / rel)
 
-        readme = module_dir / "README.md"
-        if readme.is_file():
-            _copy_markdown(readme, dest_module / "README.md")
-
-        theory_dir = module_dir / "theory"
-        if theory_dir.is_dir():
-            for path in sorted(theory_dir.glob("*.md")):
-                _copy_markdown(path, dest_module / "theory" / path.name)
-
-        quizzes_dir = module_dir / "quizzes"
-        if quizzes_dir.is_dir():
-            for path in sorted(quizzes_dir.glob("*.md")):
-                _copy_markdown(path, dest_module / "quizzes" / path.name)
+    for part_dir in sorted(REPO_ROOT.iterdir()):
+        if not part_dir.is_dir() or not PART_PATTERN.match(part_dir.name):
+            continue
+        part_readme = part_dir / "README.md"
+        if part_readme.is_file():
+            _copy_markdown(part_readme, ASSETS_COURSE / part_dir.name / "README.md")
+        for module_dir in sorted(part_dir.iterdir()):
+            if not module_dir.is_dir() or not MODULE_PATTERN.match(module_dir.name):
+                continue
+            dest = ASSETS_COURSE / part_dir.name / module_dir.name
+            _copy_module_markdown(module_dir, dest)
 
     print(f"Course assets prepared at {ASSETS_COURSE}")
     print(f"Shared modules copied to {COURSE_NAV_DEST}")

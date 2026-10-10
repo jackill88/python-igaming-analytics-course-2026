@@ -32,6 +32,17 @@ After finishing this course, you will be able to:
 | [11_analytics_architecture](11_analytics_architecture/README.md) | Analytics Architecture | 2 |
 | [12_summary](12_summary/README.md) | Summary & Stakeholder Positioning | — |
 
+Chapter 1 is the RGS-only path above. Chapter 2 assumes it and uses PAM as the system of record.
+
+| Module | Topic | Challenges |
+|--------|-------|------------|
+| [part_02_pam](part_02_pam/README.md) | Chapter 2 overview | — |
+| [01_what_changes](part_02_pam/01_what_changes/README.md) | Services, keys, grain, currency | 3 |
+| [02_activity_and_cohorts](part_02_pam/02_activity_and_cohorts/README.md) | Login, play, deposit, cohorts, CRM eligibility | 3 |
+| [03_wallet_revenue](part_02_pam/03_wallet_revenue/README.md) | FTD, paying users, ARPU, ARPPU | 3 |
+| [04_bonus_and_ngr](part_02_pam/04_bonus_and_ngr/README.md) | Bonus owners, NGR, bonus GGR share | 3 |
+| [05_models_and_pipeline](part_02_pam/05_models_and_pipeline/README.md) | PAM features, deposit churn, warehouse sources | 3 |
+
 Each module contains:
 
 - **`theory/`** — Markdown lessons with explanations and Python/SQL examples
@@ -132,6 +143,7 @@ flet build apk
 │   ├── quizzes/
 │   └── challenges/
 ├── ...
+├── part_02_pam/              # Chapter 2: PAM analytics
 ├── tests/
 ├── app/                      # Streamlit course navigator
 ├── course_nav/               # Shared discovery + SQLite progress

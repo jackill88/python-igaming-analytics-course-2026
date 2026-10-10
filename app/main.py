@@ -11,7 +11,7 @@ APP_DIR = Path(__file__).resolve().parent
 if str(APP_DIR.parent) not in sys.path:
     sys.path.insert(0, str(APP_DIR.parent))
 
-from course_nav.course_loader import COURSE_ROOT, discover_modules, read_markdown
+from course_nav.course_loader import COURSE_ROOT, discover_modules, group_modules, read_markdown
 from course_nav.database import (
     ModuleStatus,
     completion_stats,
@@ -101,25 +101,26 @@ def _render_sidebar() -> None:
     )
 
     st.sidebar.divider()
-    st.sidebar.subheader("Modules")
 
     progress_map = {m.module_id: get_progress(m.module_id) for m in modules}
-    for module in modules:
-        prog = progress_map[module.module_id]
-        icon = STATUS_ICONS[prog.status]
-        label = f"{icon} {module.number:02d}. {module.title}"
-        st.sidebar.button(
-            label,
-            key=f"nav_{module.module_id}",
-            use_container_width=True,
-            on_click=_open_module,
-            args=(module.module_id,),
-        )
+    for part_title, part_modules in group_modules(modules):
+        st.sidebar.subheader(part_title)
+        for module in part_modules:
+            prog = progress_map[module.module_id]
+            icon = STATUS_ICONS[prog.status]
+            label = f"{icon} {module.number:02d}. {module.title}"
+            st.sidebar.button(
+                label,
+                key=f"nav_{module.module_id}",
+                use_container_width=True,
+                on_click=_open_module,
+                args=(module.module_id,),
+            )
 
 
 def _render_home() -> None:
     st.title("iGaming Analytics Course")
-    st.caption("RGS data · player metrics · ML · self-paced · test-driven")
+    st.caption("Chapter 1 RGS · Chapter 2 PAM · self-paced · test-driven")
 
     modules = st.session_state.modules
     completed, total = completion_stats([m.module_id for m in modules])
@@ -136,18 +137,24 @@ def _render_home() -> None:
 
     st.subheader("Your learning path")
     progress_map = {m.module_id: get_progress(m.module_id) for m in modules}
-    for module in modules:
-        prog = progress_map[module.module_id]
-        icon = STATUS_ICONS[prog.status]
-        cols = st.columns([1, 6, 2])
-        cols[0].write(f"**{module.number:02d}**")
-        cols[1].write(f"{icon} **{module.title}** — {STATUS_LABELS[prog.status]}")
-        cols[2].button(
-            "Open",
-            key=f"home_open_{module.module_id}",
-            on_click=_open_module,
-            args=(module.module_id,),
-        )
+    for part_title, part_modules in group_modules(modules):
+        st.markdown(f"### {part_title}")
+        part_readme = part_modules[0].part_readme
+        if part_readme is not None and part_readme.is_file():
+            with st.expander("Chapter overview", expanded=False):
+                st.markdown(read_markdown(part_readme))
+        for module in part_modules:
+            prog = progress_map[module.module_id]
+            icon = STATUS_ICONS[prog.status]
+            cols = st.columns([1, 6, 2])
+            cols[0].write(f"**{module.number:02d}**")
+            cols[1].write(f"{icon} **{module.title}** — {STATUS_LABELS[prog.status]}")
+            cols[2].button(
+                "Open",
+                key=f"home_open_{module.module_id}",
+                on_click=_open_module,
+                args=(module.module_id,),
+            )
 
 
 def _render_module(module_id: str) -> None:
@@ -159,7 +166,7 @@ def _render_module(module_id: str) -> None:
     progress = get_progress(module_id)
 
     st.title(module.title)
-    st.caption(f"Module {module.number:02d} · `{module.module_id}`")
+    st.caption(f"{module.part_title} · Module {module.number:02d} · `{module.module_id}`")
 
     cols = st.columns([2, 2, 2, 2])
     cols[0].metric("Status", STATUS_LABELS[progress.status])
